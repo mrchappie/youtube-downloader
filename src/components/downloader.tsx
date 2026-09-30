@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import type { JobStatus, PublicJob } from "@/lib/types";
+import { formatBytes, formatDuration, formatSpeed } from "@/lib/format";
 
 const STATUS_META: Record<JobStatus, { label: string; className: string }> = {
   queued: { label: "Queued", className: "bg-zinc-500/15 text-zinc-400" },
@@ -15,25 +16,6 @@ const STATUS_META: Record<JobStatus, { label: string; className: string }> = {
 };
 
 const ACTIVE: JobStatus[] = ["queued", "resolving", "downloading", "converting"];
-
-function formatBytes(bytes: number): string {
-  if (!bytes) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
-  return `${(bytes / 1024 ** i).toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
-}
-
-function formatDuration(seconds: number | null): string {
-  if (seconds === null) return "--:--";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
-function formatSpeed(bps: number | null): string {
-  if (!bps) return "";
-  return `${formatBytes(bps)}/s`;
-}
 
 export default function Downloader() {
   const [url, setUrl] = useState("");

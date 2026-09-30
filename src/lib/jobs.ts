@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, rm, stat } from "node:fs/promises";
+import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import {
   BASE_ARGS,
   FFMPEG_DIR,
@@ -13,6 +13,18 @@ import {
 import type { Job } from "./types";
 
 const MAX_JOBS = 50;
+export const OLD_AGE_MS = 60 * 60 * 1000;
+
+const ACTIVE_STATUSES = new Set<Job["status"]>([
+  "queued",
+  "resolving",
+  "downloading",
+  "converting",
+]);
+
+export function isActive(job: Job): boolean {
+  return ACTIVE_STATUSES.has(job.status);
+}
 
 interface JobStore {
   jobs: Map<string, Job>;
@@ -196,6 +208,7 @@ async function run(job: Job): Promise<void> {
       job.error = err.message;
       job.updatedAt = Date.now();
       store.procs.delete(job.id);
+      void rm(dir, { recursive: true, force: true }).catch(() => {});
       resolve();
     });
 
@@ -224,6 +237,7 @@ async function run(job: Job): Promise<void> {
             job.status = "error";
             job.error = "Conversion finished but no MP3 was produced";
             job.updatedAt = Date.now();
+            void rm(dir, { recursive: true, force: true }).catch(() => {});
           })
           .finally(resolve);
         return;
@@ -232,6 +246,7 @@ async function run(job: Job): Promise<void> {
       job.status = "error";
       job.error = lastErrorLine(log) ?? `yt-dlp exited with code ${code}`;
       job.updatedAt = Date.now();
+      void rm(dir, { recursive: true, force: true }).catch(() => {});
       resolve();
     });
   });
@@ -254,4 +269,105 @@ function prune(): void {
     store.jobs.delete(stale.id);
     void rm(jobDir(stale.id), { recursive: true, force: true }).catch(() => {});
   }
+}
+
+async function dirSize(dir: string): Promise<number> {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  let total = 0;
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      total += await dirSize(full);
+    } else {
+      try {
+        total += (await stat(full)).size;
+      } catch {
+        /* file vanished mid-scan */
+      }
+    }
+  }
+  return total;
+}
+
+async function removeJobFiles(job: Job): Promise<number> {
+  const dir = jobDir(job.id);
+  const size = await dirSize(dir);
+  await rm(dir, { recursive: true, force: true }).catch(() => {});
+  return size;
+}
+
+export interface StorageStats {
+  totalJobs: number;
+  failed: number;
+  completed: number;
+  old: number;
+  active: number;
+  bytesOnDisk: number;
+  oldAgeMs: number;
+}
+
+export async function storageStats(): Promise<StorageStats> {
+  const all = listJobs();
+  const now = Date.now();
+  let bytesOnDisk = 0;
+  let failed = 0;
+  let completed = 0;
+  let old = 0;
+  let active = 0;
+
+  for (const job of all) {
+    if (isActive(job)) active += 1;
+    if (job.status === "error") failed += 1;
+    if (job.status === "completed") completed += 1;
+    if (!isActive(job) && now - job.createdAt > OLD_AGE_MS) old += 1;
+    bytesOnDisk += await dirSize(jobDir(job.id));
+  }
+
+  return {
+    totalJobs: all.length,
+    failed,
+    completed,
+    old,
+    active,
+    bytesOnDisk,
+    oldAgeMs: OLD_AGE_MS,
+  };
+}
+
+export type CleanupScope = "failed" | "completed" | "old" | "all";
+
+export interface CleanupResult {
+  scope: CleanupScope;
+  removed: number;
+  freedBytes: number;
+}
+
+export async function cleanup(scope: CleanupScope): Promise<CleanupResult> {
+  const now = Date.now();
+  const targets = listJobs().filter((job) => {
+    if (isActive(job)) return false;
+    switch (scope) {
+      case "failed":
+        return job.status === "error" || job.status === "canceled";
+      case "completed":
+        return job.status === "completed";
+      case "old":
+        return now - job.createdAt > OLD_AGE_MS;
+      case "all":
+        return true;
+    }
+  });
+
+  let freedBytes = 0;
+  for (const job of targets) {
+    freedBytes += await removeJobFiles(job);
+    store.jobs.delete(job.id);
+  }
+
+  return { scope, removed: targets.length, freedBytes };
 }
