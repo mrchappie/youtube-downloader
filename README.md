@@ -10,6 +10,7 @@ Paste a YouTube URL, watch the progress bar, then download the finished MP3.
 - Live progress bar (percent, downloaded/total, speed)
 - Job list with status, thumbnail, title, uploader, duration
 - Cancel in-flight downloads
+- Download all finished MP3s at once as a ZIP
 - Input validation (YouTube URLs only)
 
 ## Stack
@@ -53,6 +54,7 @@ Downloaded files are written to the OS temp directory (`<tmp>/ytdl-web/<jobId>/`
 | `GET`    | `/api/jobs/:id`         | Get one job                          |
 | `DELETE` | `/api/jobs/:id`         | Cancel a job                         |
 | `GET`    | `/api/jobs/:id/file`    | Download the finished MP3           |
+| `GET`    | `/api/download-all`     | Download all finished MP3s as a ZIP  |
 | `GET`    | `/api/cleanup`          | Storage stats (counts + bytes on disk) |
 | `POST`   | `/api/cleanup`          | Clear files `{ "scope": "failed" \| "completed" \| "old" \| "all" }` |
 

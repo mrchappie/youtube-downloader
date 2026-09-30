@@ -76,6 +76,22 @@ export function listJobs(): Job[] {
   return [...store.jobs.values()].sort((a, b) => b.createdAt - a.createdAt);
 }
 
+export interface CompletedFile {
+  id: string;
+  title: string;
+  filePath: string;
+}
+
+export function listCompletedFiles(): CompletedFile[] {
+  return listJobs()
+    .filter((job) => job.status === "completed" && job.filePath !== null)
+    .map((job) => ({
+      id: job.id,
+      title: job.title ?? "audio",
+      filePath: job.filePath as string,
+    }));
+}
+
 export function cancelJob(id: string): boolean {
   const job = store.jobs.get(id);
   if (!job) return false;

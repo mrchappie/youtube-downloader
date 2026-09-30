@@ -76,6 +76,8 @@ export default function Downloader() {
     await fetch(`/api/jobs/${id}`, { method: "DELETE" }).catch(() => {});
   }
 
+  const completedCount = jobs.filter((j) => j.status === "completed").length;
+
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
       <header className="mb-10">
@@ -115,7 +117,22 @@ export default function Downloader() {
         </p>
       )}
 
-      <section className="mt-10 space-y-3">
+      <div className="mt-10 mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium text-zinc-400">Downloads</h2>
+        <a
+          href="/api/download-all"
+          aria-disabled={completedCount === 0}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            completedCount === 0
+              ? "pointer-events-none border border-white/10 text-zinc-600"
+              : "bg-white text-zinc-900 hover:bg-zinc-200"
+          }`}
+        >
+          Download all{completedCount > 0 ? ` (${completedCount})` : ""}
+        </a>
+      </div>
+
+      <section className="space-y-3">
         {jobs.length === 0 && (
           <p className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-zinc-500">
             No downloads yet. Paste a link above to get started.
