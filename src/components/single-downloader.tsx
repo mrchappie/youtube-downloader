@@ -80,14 +80,14 @@ export default function SingleDownloader() {
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
       <header className="mb-10">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-400">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
           {t("single.badge")}
         </div>
-        <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+        <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           {t("single.titleBefore")} <span className="text-red-500">MP3</span>
         </h1>
-        <p className="mt-3 text-base text-zinc-400">{t("single.subtitle")}</p>
+        <p className="mt-3 text-base text-muted">{t("single.subtitle")}</p>
       </header>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-3 sm:flex-row">
@@ -97,7 +97,7 @@ export default function SingleDownloader() {
           onChange={(e) => setUrl(e.target.value)}
           placeholder={t("form.urlVideo")}
           spellCheck={false}
-          className="h-12 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-red-500/60 focus:bg-white/[0.07] focus:ring-2 focus:ring-red-500/20"
+          className="h-12 flex-1 rounded-xl border border-border bg-card px-4 text-sm text-foreground placeholder:text-muted-2 outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
         />
         <button
           type="submit"
@@ -109,7 +109,7 @@ export default function SingleDownloader() {
       </form>
 
       {playlistHint && !error && (
-        <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+        <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
           {t("single.playlistHint")}{" "}
           <Link href="/playlist" className="font-semibold underline">
             {t("single.playlistHintLink")}
@@ -119,13 +119,13 @@ export default function SingleDownloader() {
       )}
 
       {error && (
-        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">
           {error}
         </p>
       )}
 
       <div className="mt-10 mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-zinc-400">
+        <h2 className="text-sm font-medium text-muted">
           {t("downloads.heading")}
         </h2>
         <div className="flex items-center gap-2">
@@ -134,8 +134,8 @@ export default function SingleDownloader() {
             disabled={failed === 0}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
               failed === 0
-                ? "cursor-not-allowed border border-white/10 text-zinc-600"
-                : "border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10"
+                ? "cursor-not-allowed border border-border text-muted-2"
+                : "border border-border bg-card text-foreground hover:bg-hover"
             }`}
           >
             {t("action.retryAllFailed")}
@@ -146,8 +146,8 @@ export default function SingleDownloader() {
             aria-disabled={completed === 0}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
               completed === 0
-                ? "pointer-events-none border border-white/10 text-zinc-600"
-                : "bg-white text-zinc-900 hover:bg-zinc-200"
+                ? "pointer-events-none border border-border text-muted-2"
+                : "bg-foreground text-background hover:opacity-90"
             }`}
           >
             {t("action.downloadAll")}
@@ -158,7 +158,7 @@ export default function SingleDownloader() {
 
       <section className="space-y-3">
         {singles.length === 0 && (
-          <p className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-zinc-500">
+          <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-2">
             {t("empty.single")}
           </p>
         )}

@@ -20,8 +20,8 @@ export default function JobRow({
   const canRetry = job.status === "error" || job.status === "canceled";
 
   return (
-    <article className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="relative hidden h-[67px] w-[120px] shrink-0 overflow-hidden rounded-lg bg-zinc-800 sm:block">
+    <article className="flex gap-4 rounded-2xl border border-border bg-card p-4">
+      <div className="relative hidden h-[67px] w-[120px] shrink-0 overflow-hidden rounded-lg bg-card-strong sm:block">
         {job.thumbnail ? (
           <Image
             src={job.thumbnail}
@@ -32,7 +32,7 @@ export default function JobRow({
             className="object-cover"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-zinc-600">
+          <div className="flex h-full items-center justify-center text-xs text-muted-2">
             MP3
           </div>
         )}
@@ -41,13 +41,13 @@ export default function JobRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-white">
+            <p className="truncate text-sm font-medium text-foreground">
               {job.playlistIndex !== null && (
-                <span className="mr-1 text-zinc-500">{job.playlistIndex}.</span>
+                <span className="mr-1 text-muted-2">{job.playlistIndex}.</span>
               )}
               {job.title ?? job.url}
             </p>
-            <p className="mt-0.5 truncate text-xs text-zinc-500">
+            <p className="mt-0.5 truncate text-xs text-muted-2">
               {job.uploader ?? "YouTube"} · {formatDuration(job.durationSec)}
             </p>
           </div>
@@ -60,13 +60,13 @@ export default function JobRow({
 
         {active && (
           <div className="mt-3">
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-track">
               <div
                 className="h-full rounded-full bg-red-500 transition-all duration-300"
                 style={{ width: `${job.progress}%` }}
               />
             </div>
-            <div className="mt-1.5 flex justify-between text-[11px] text-zinc-500">
+            <div className="mt-1.5 flex justify-between text-[11px] text-muted-2">
               <span>
                 {job.status === "queued"
                   ? t("job.queued")
@@ -84,7 +84,9 @@ export default function JobRow({
         )}
 
         {job.status === "error" && job.error && (
-          <p className="mt-2 line-clamp-2 text-xs text-red-400">{job.error}</p>
+          <p className="mt-2 line-clamp-2 text-xs text-red-600 dark:text-red-400">
+            {job.error}
+          </p>
         )}
 
         <div className="mt-3 flex gap-2">
@@ -99,7 +101,7 @@ export default function JobRow({
           {canRetry && (
             <button
               onClick={() => onRetry(job.id)}
-              className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+              className="rounded-lg bg-hover px-3 py-1.5 text-xs font-semibold text-foreground transition hover:opacity-80"
             >
               {t("action.retry")}
             </button>
@@ -107,7 +109,7 @@ export default function JobRow({
           {active && (
             <button
               onClick={() => onCancel(job.id)}
-              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5"
+              className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-hover hover:text-foreground"
             >
               {t("action.cancel")}
             </button>

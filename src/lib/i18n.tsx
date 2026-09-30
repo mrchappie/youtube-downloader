@@ -22,6 +22,10 @@ const en: Dict = {
   "nav.single": "Single video",
   "nav.playlist": "Playlist",
   "lang.label": "Language",
+  "theme.label": "Theme",
+  "theme.system": "System",
+  "theme.light": "Light",
+  "theme.dark": "Dark",
 
   "sidebar.storage": "Storage",
   "sidebar.onDisk": "on disk",
@@ -114,6 +118,10 @@ const ro: Dict = {
   "nav.single": "Video simplu",
   "nav.playlist": "Playlistă",
   "lang.label": "Limbă",
+  "theme.label": "Temă",
+  "theme.system": "Sistem",
+  "theme.light": "Luminos",
+  "theme.dark": "Întunecat",
 
   "sidebar.storage": "Stocare",
   "sidebar.onDisk": "pe disc",

@@ -203,14 +203,14 @@ export default function PlaylistDownloader() {
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
       <header className="mb-10">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-400">
+        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
           {t("playlist.badge")}
         </div>
-        <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+        <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           {t("playlist.titleBefore")} <span className="text-red-500">MP3</span>
         </h1>
-        <p className="mt-3 text-base text-zinc-400">
+        <p className="mt-3 text-base text-muted">
           {t("playlist.subtitle", { size: PLAYLIST_DEFAULT_SIZE })}
         </p>
       </header>
@@ -222,30 +222,30 @@ export default function PlaylistDownloader() {
           onChange={(e) => setUrl(e.target.value)}
           placeholder={t("form.urlPlaylist")}
           spellCheck={false}
-          className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-red-500/60 focus:bg-white/[0.07] focus:ring-2 focus:ring-red-500/20"
+          className="h-12 w-full rounded-xl border border-border bg-card px-4 text-sm text-foreground placeholder:text-muted-2 outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20"
         />
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
+          <label className="flex flex-col gap-1 text-xs text-muted-2">
             {t("range.from")}
             <input
               type="number"
               min={1}
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="h-11 w-24 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-red-500/60"
+              className="h-11 w-24 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-red-500/60"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs text-zinc-500">
+          <label className="flex flex-col gap-1 text-xs text-muted-2">
             {t("range.to")}
             <input
               type="number"
               min={1}
               value={end}
               onChange={(e) => setEnd(e.target.value)}
-              className="h-11 w-24 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white outline-none focus:border-red-500/60"
+              className="h-11 w-24 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-red-500/60"
             />
           </label>
-          <span className="pb-3 text-xs text-zinc-500">
+          <span className="pb-3 text-xs text-muted-2">
             {size > 0
               ? t(size === 1 ? "range.items.one" : "range.items.other", {
                   count: size,
@@ -263,24 +263,24 @@ export default function PlaylistDownloader() {
       </form>
 
       {tooBig && (
-        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">
           {t("warning.tooBig", { max: PLAYLIST_MAX_SIZE })}
         </p>
       )}
       {warn && (
-        <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+        <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
           {t("warning.heavy", { count: size, warn: PLAYLIST_WARN_SIZE })}
         </p>
       )}
       {error && (
-        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+        <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">
           {error}
         </p>
       )}
 
       {batch && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-          <p className="text-xs text-zinc-400">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <p className="text-xs text-muted">
             {t("batch.loaded", {
               start: batch.start,
               end: batch.end,
@@ -291,18 +291,20 @@ export default function PlaylistDownloader() {
             <button
               onClick={downloadNext}
               disabled={submitting}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-40"
+              className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-semibold text-background transition hover:opacity-90 disabled:opacity-40"
             >
               {t("action.downloadNext")} ({nextStart}–{nextEnd})
             </button>
           ) : (
-            <span className="text-xs text-emerald-400">{t("batch.end")}</span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">
+              {t("batch.end")}
+            </span>
           )}
         </div>
       )}
 
       <div className="mt-8 mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-zinc-400">
+        <h2 className="text-sm font-medium text-muted">
           {t("playlists.heading")}
         </h2>
         <button
@@ -310,8 +312,8 @@ export default function PlaylistDownloader() {
           disabled={failedTotal === 0}
           className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
             failedTotal === 0
-              ? "cursor-not-allowed border border-white/10 text-zinc-600"
-              : "border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10"
+              ? "cursor-not-allowed border border-border text-muted-2"
+              : "border border-border bg-card text-foreground hover:bg-hover"
           }`}
         >
           {t("action.retryAllFailed")}
@@ -321,7 +323,7 @@ export default function PlaylistDownloader() {
 
       <section className="space-y-3">
         {groups.length === 0 && (
-          <p className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-zinc-500">
+          <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-2">
             {t("playlist.empty")}
           </p>
         )}
@@ -340,7 +342,7 @@ export default function PlaylistDownloader() {
           return (
             <div
               key={group.id}
-              className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
+              className="overflow-hidden rounded-2xl border border-border bg-card"
             >
               <div className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -348,14 +350,14 @@ export default function PlaylistDownloader() {
                     onClick={() => toggleCollapse(group.id)}
                     className="flex min-w-0 items-center gap-2 text-left"
                   >
-                    <span className="text-zinc-500">
+                    <span className="text-muted-2">
                       {isCollapsed ? "\u25b6" : "\u25bc"}
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-white">
+                      <span className="block truncate text-sm font-semibold text-foreground">
                         {group.title}
                       </span>
-                      <span className="mt-0.5 block text-xs text-zinc-500">
+                      <span className="mt-0.5 block text-xs text-muted-2">
                         {t(
                           playlistTotal === 1
                             ? "range.items.one"
@@ -379,7 +381,7 @@ export default function PlaylistDownloader() {
                     {done > 0 && (
                       <a
                         href={`/api/download-all?playlist=${encodeURIComponent(group.id)}`}
-                        className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
+                        className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition hover:bg-emerald-500/20 dark:text-emerald-300"
                       >
                         {t("action.zip")} ({done})
                       </a>
@@ -387,14 +389,14 @@ export default function PlaylistDownloader() {
                     {activeCount > 0 && (
                       <button
                         onClick={() => cancelPlaylist(group.id)}
-                        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5"
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted transition hover:bg-hover hover:text-foreground"
                       >
                         {t("action.cancelAll")}
                       </button>
                     )}
                   </div>
                 </div>
-                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-track">
                   <div
                     className="h-full rounded-full bg-emerald-500 transition-all duration-300"
                     style={{ width: `${pct}%` }}
@@ -403,7 +405,7 @@ export default function PlaylistDownloader() {
               </div>
 
               {!isCollapsed && (
-                <div className="space-y-3 border-t border-white/10 p-3">
+                <div className="space-y-3 border-t border-border p-3">
                   {group.jobs.map((job) => (
                     <JobRow
                       key={job.id}

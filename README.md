@@ -18,6 +18,7 @@ progress bars, then download the finished MP3s.
 - Cancel a single download or an entire playlist
 - Per-playlist or singles-only ZIP download
 - English and Romanian UI, switchable from the sidebar (saved in the browser)
+- Light / dark theme following your system by default, with a manual override
 - Storage sidebar to clear failed/canceled/finished/old files
 - Input validation (YouTube URLs only)
 

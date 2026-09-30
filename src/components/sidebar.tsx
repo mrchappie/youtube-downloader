@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import type { CleanupScope, StorageStats } from "@/lib/jobs";
 import { formatAge, formatBytes } from "@/lib/format";
 import { LOCALES, useI18n } from "@/lib/i18n";
+import { useTheme, type Theme } from "@/lib/theme";
 
 interface Action {
   scope: CleanupScope;
@@ -27,9 +28,16 @@ const NAV = [
   { href: "/playlist", labelKey: "nav.playlist" },
 ];
 
+const THEMES: { value: Theme; labelKey: string }[] = [
+  { value: "system", labelKey: "theme.system" },
+  { value: "light", labelKey: "theme.light" },
+  { value: "dark", labelKey: "theme.dark" },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { t, locale, setLocale } = useI18n();
+  const { theme, setTheme } = useTheme();
   const [stats, setStats] = useState<StorageStats | null>(null);
   const [busy, setBusy] = useState<CleanupScope | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -85,10 +93,10 @@ export default function Sidebar() {
   const oldAge = stats ? formatAge(stats.oldAgeMs) : "1h";
 
   return (
-    <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-white/10 bg-white/[0.02] p-5 md:sticky md:top-0 md:h-screen md:w-72 md:border-b-0 md:border-r">
+    <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-border bg-card p-5 md:sticky md:top-0 md:h-screen md:w-72 md:border-b-0 md:border-r">
       <Link href="/" className="flex items-center gap-2">
         <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-        <span className="text-sm font-semibold tracking-tight text-white">
+        <span className="text-sm font-semibold tracking-tight text-foreground">
           YouTube Downloader
         </span>
       </Link>
@@ -102,8 +110,8 @@ export default function Sidebar() {
               href={item.href}
               className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
                 active
-                  ? "bg-white/10 text-white"
-                  : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                  ? "bg-hover text-foreground"
+                  : "text-muted hover:bg-hover hover:text-foreground"
               }`}
             >
               {t(item.labelKey)}
@@ -112,36 +120,59 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wide text-zinc-500">
-          {t("lang.label")}
-        </span>
-        <div className="flex gap-0.5 rounded-lg border border-white/10 p-0.5">
-          {LOCALES.map((item) => (
-            <button
-              key={item.value}
-              onClick={() => setLocale(item.value)}
-              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-                locale === item.value
-                  ? "bg-white text-zinc-900"
-                  : "text-zinc-400 hover:text-zinc-200"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          <span className="text-xs uppercase tracking-wide text-muted-2">
+            {t("lang.label")}
+          </span>
+          <div className="flex rounded-lg border border-border p-0.5">
+            {LOCALES.map((item) => (
+              <button
+                key={item.value}
+                onClick={() => setLocale(item.value)}
+                className={`flex-1 rounded-md px-2 py-1 text-[11px] font-semibold transition ${
+                  locale === item.value
+                    ? "bg-foreground text-background"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-xs uppercase tracking-wide text-muted-2">
+            {t("theme.label")}
+          </span>
+          <div className="flex rounded-lg border border-border p-0.5">
+            {THEMES.map((item) => (
+              <button
+                key={item.value}
+                onClick={() => setTheme(item.value)}
+                className={`flex-1 rounded-md px-1.5 py-1 text-[11px] font-semibold transition ${
+                  theme === item.value
+                    ? "bg-foreground text-background"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {t(item.labelKey)}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div>
-        <p className="mb-3 text-xs uppercase tracking-wide text-zinc-500">
+        <p className="mb-3 text-xs uppercase tracking-wide text-muted-2">
           {t("sidebar.storage")}
         </p>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-          <p className="text-2xl font-semibold text-white">
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <p className="text-2xl font-semibold text-foreground">
             {stats ? formatBytes(stats.bytesOnDisk) : "—"}
           </p>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-muted-2">
             {stats
               ? `${stats.totalJobs} ${t(
                   stats.totalJobs === 1 ? "sidebar.job.one" : "sidebar.job.other",
@@ -162,21 +193,21 @@ export default function Sidebar() {
               disabled={disabled}
               className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
                 action.danger
-                  ? "border-red-500/30 bg-red-500/5 text-red-300 hover:bg-red-500/10"
-                  : "border-white/10 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.07]"
+                  ? "border-red-500/30 bg-red-500/5 text-red-600 hover:bg-red-500/10 dark:text-red-300"
+                  : "border-border bg-card text-foreground hover:bg-hover"
               }`}
             >
               <span className="font-medium">
                 {t(action.labelKey)}
                 {action.scope === "old" && (
-                  <span className="ml-1 text-xs font-normal text-zinc-500">
+                  <span className="ml-1 text-xs font-normal text-muted-2">
                     &gt; {oldAge}
                   </span>
                 )}
               </span>
               <span
                 className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${
-                  action.danger ? "bg-red-500/15" : "bg-white/10"
+                  action.danger ? "bg-red-500/15" : "bg-hover"
                 }`}
               >
                 {busy === action.scope ? "…" : count}
@@ -187,12 +218,12 @@ export default function Sidebar() {
       </nav>
 
       {message && (
-        <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
+        <p className="rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted">
           {message}
         </p>
       )}
 
-      <p className="mt-auto text-[11px] leading-relaxed text-zinc-600">
+      <p className="mt-auto text-[11px] leading-relaxed text-muted-2">
         {t("sidebar.footer")}
       </p>
     </aside>
