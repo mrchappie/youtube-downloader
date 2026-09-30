@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LOCALES, useI18n } from "@/lib/i18n";
-import { useTheme, type Theme } from "@/lib/theme";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { LOCALES, useI18n } from '@/lib/i18n';
+import { useTheme, type Theme } from '@/lib/theme';
 
 const NAV = [
-  { href: "/", labelKey: "nav.single" },
-  { href: "/playlist", labelKey: "nav.playlist" },
-  { href: "/settings", labelKey: "nav.settings" },
+  { href: '/', labelKey: 'nav.single' },
+  { href: '/playlist', labelKey: 'nav.playlist' },
+  { href: '/settings', labelKey: 'nav.settings' },
 ];
 
-const THEMES: Theme[] = ["system", "light", "dark"];
+const THEMES: Theme[] = ['system', 'light', 'dark'];
 
 function LogoIcon({ className }: { className?: string }) {
   return (
@@ -33,15 +33,15 @@ function LogoIcon({ className }: { className?: string }) {
 
 function ThemeIcon({ name }: { name: Theme }) {
   const common = {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
     strokeWidth: 2,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    className: "h-4 w-4",
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    className: 'h-4 w-4',
   };
-  if (name === "system") {
+  if (name === 'system') {
     return (
       <svg {...common}>
         <rect x="2" y="3" width="20" height="14" rx="2" />
@@ -49,7 +49,7 @@ function ThemeIcon({ name }: { name: Theme }) {
       </svg>
     );
   }
-  if (name === "light") {
+  if (name === 'light') {
     return (
       <svg {...common}>
         <circle cx="12" cy="12" r="4" />
@@ -71,20 +71,15 @@ export default function TopNav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
-      <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 py-2">
-        <Link
-          href="/"
-          className="flex items-center gap-2.5 px-4 sm:px-5 md:w-72 md:shrink-0"
-        >
+      <div className="flex min-h-16 flex-wrap items-center gap-y-2 py-2">
+        <Link href="/" className="flex items-center gap-2.5 px-4 sm:px-5 md:w-72 md:shrink-0">
           <LogoIcon className="h-7 w-7" />
-          <span className="text-sm font-semibold tracking-tight text-foreground">
-            YouTube Downloader
-          </span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">YouTube Downloader</span>
         </Link>
 
         <span className="hidden h-6 w-px bg-border sm:block" aria-hidden="true" />
 
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-1 ml-4">
           {NAV.map((item) => {
             const active = pathname === item.href;
             return (
@@ -92,9 +87,7 @@ export default function TopNav() {
                 key={item.href}
                 href={item.href}
                 className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                  active
-                    ? "bg-hover text-foreground"
-                    : "text-muted hover:bg-hover hover:text-foreground"
+                  active ? 'bg-hover text-foreground' : 'text-muted hover:bg-hover hover:text-foreground'
                 }`}
               >
                 {t(item.labelKey)}
@@ -112,9 +105,7 @@ export default function TopNav() {
                 aria-label={t(`theme.${value}`)}
                 title={t(`theme.${value}`)}
                 className={`rounded-md p-1.5 transition ${
-                  theme === value
-                    ? "bg-foreground text-background"
-                    : "text-muted hover:text-foreground"
+                  theme === value ? 'bg-foreground text-background' : 'text-muted hover:text-foreground'
                 }`}
               >
                 <ThemeIcon name={value} />
@@ -128,9 +119,7 @@ export default function TopNav() {
                 key={item.value}
                 onClick={() => setLocale(item.value)}
                 className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
-                  locale === item.value
-                    ? "bg-foreground text-background"
-                    : "text-muted hover:text-foreground"
+                  locale === item.value ? 'bg-foreground text-background' : 'text-muted hover:text-foreground'
                 }`}
               >
                 {item.label}
