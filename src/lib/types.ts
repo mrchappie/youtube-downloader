@@ -25,6 +25,7 @@ export interface Job {
   playlistId: string | null;
   playlistTitle: string | null;
   playlistIndex: number | null;
+  playlistTotal: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -47,6 +48,7 @@ export interface PublicJob {
   playlistId: string | null;
   playlistTitle: string | null;
   playlistIndex: number | null;
+  playlistTotal: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -70,6 +72,7 @@ export function toPublicJob(job: Job): PublicJob {
     playlistId: job.playlistId,
     playlistTitle: job.playlistTitle,
     playlistIndex: job.playlistIndex,
+    playlistTotal: job.playlistTotal,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };

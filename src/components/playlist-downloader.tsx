@@ -21,6 +21,7 @@ interface PlaylistBatch {
 interface PlaylistGroup {
   id: string;
   title: string;
+  total: number | null;
   jobs: PublicJob[];
 }
 
@@ -176,6 +177,7 @@ export default function PlaylistDownloader() {
       group = {
         id: job.playlistId,
         title: job.playlistTitle ?? "Playlist",
+        total: job.playlistTotal,
         jobs: [],
       };
       groups.push(group);
@@ -317,6 +319,7 @@ export default function PlaylistDownloader() {
 
         {groups.map((group) => {
           const total = group.jobs.length;
+          const playlistTotal = group.total ?? total;
           const done = group.jobs.filter((j) => j.status === "completed").length;
           const failed = group.jobs.filter((j) => j.status === "error").length;
           const activeCount = group.jobs.filter((j) =>
@@ -344,6 +347,8 @@ export default function PlaylistDownloader() {
                         {group.title}
                       </span>
                       <span className="mt-0.5 block text-xs text-zinc-500">
+                        {playlistTotal} item{playlistTotal === 1 ? "" : "s"}
+                        {playlistTotal > total ? ` (${total} loaded)` : ""} ·{" "}
                         {done}/{total} done
                         {failed > 0 ? ` · ${failed} failed` : ""}
                         {activeCount > 0 ? ` · ${activeCount} active` : ""}

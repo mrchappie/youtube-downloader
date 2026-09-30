@@ -52,6 +52,7 @@ interface InsertFields {
   playlistId?: string | null;
   playlistTitle?: string | null;
   playlistIndex?: number | null;
+  playlistTotal?: number | null;
   createdAt?: number;
 }
 
@@ -75,6 +76,7 @@ function insertJob(fields: InsertFields): Job {
     playlistId: fields.playlistId ?? null,
     playlistTitle: fields.playlistTitle ?? null,
     playlistIndex: fields.playlistIndex ?? null,
+    playlistTotal: fields.playlistTotal ?? null,
     createdAt: fields.createdAt ?? now,
     updatedAt: now,
   };
@@ -111,6 +113,7 @@ export function newPlaylistJobs(
       playlistId: meta.id,
       playlistTitle: meta.title,
       playlistIndex: entry.index,
+      playlistTotal: meta.total,
       createdAt: now,
     }),
   );
