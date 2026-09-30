@@ -67,6 +67,7 @@ export function watchUrl(videoId: string): string {
 
 export interface PlaylistEntry {
   id: string;
+  index: number;
   title: string;
   durationSec: number | null;
   thumbnail: string | null;
@@ -76,16 +77,33 @@ export interface PlaylistEntry {
 export interface PlaylistMeta {
   id: string;
   title: string;
+  start: number;
+  end: number;
+  total: number;
   entries: PlaylistEntry[];
 }
 
-export function fetchPlaylist(url: string): Promise<PlaylistMeta> {
+export interface PlaylistRange {
+  start?: number;
+  end?: number;
+}
+
+export function fetchPlaylist(
+  url: string,
+  range: PlaylistRange = {},
+): Promise<PlaylistMeta> {
+  const start = Math.max(1, Math.floor(range.start ?? 1));
+  const end = Math.max(start, Math.floor(range.end ?? start + 99));
   return new Promise((resolve, reject) => {
     const args = [
       "--ignore-config",
       "--no-warnings",
       "--no-color",
       "--flat-playlist",
+      "--playlist-start",
+      String(start),
+      "--playlist-end",
+      String(end),
       "--dump-single-json",
       "--",
       url,
@@ -107,17 +125,19 @@ export function fetchPlaylist(url: string): Promise<PlaylistMeta> {
         const raw = JSON.parse(stdout) as {
           id?: string;
           title?: string;
+          playlist_count?: number;
           entries?: unknown[];
         };
         const rawEntries = Array.isArray(raw.entries) ? raw.entries : [];
         const entries: PlaylistEntry[] = [];
-        for (const entry of rawEntries) {
-          if (typeof entry !== "object" || entry === null) continue;
+        rawEntries.forEach((entry, rawIndex) => {
+          if (typeof entry !== "object" || entry === null) return;
           const record = entry as Record<string, unknown>;
           const id = typeof record.id === "string" ? record.id : null;
-          if (!id) continue;
+          if (!id) return;
           entries.push({
             id,
+            index: start + rawIndex,
             title:
               typeof record.title === "string" && record.title
                 ? record.title
@@ -130,16 +150,22 @@ export function fetchPlaylist(url: string): Promise<PlaylistMeta> {
             thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
             url: watchUrl(id),
           });
-        }
+        });
         if (entries.length === 0) {
-          reject(new Error("Playlist is empty or unavailable"));
+          reject(new Error("No videos found in that range"));
           return;
         }
-        const fallbackId =
-          new URL(url).searchParams.get("list") ?? raw.id ?? "playlist";
+        const total =
+          typeof raw.playlist_count === "number" && raw.playlist_count > 0
+            ? raw.playlist_count
+            : start - 1 + entries.length;
+        const fallbackId = new URL(url).searchParams.get("list") ?? raw.id;
         resolve({
-          id: raw.id ?? fallbackId,
+          id: raw.id ?? fallbackId ?? "playlist",
           title: raw.title ?? "Playlist",
+          start,
+          end,
+          total,
           entries,
         });
       } catch {

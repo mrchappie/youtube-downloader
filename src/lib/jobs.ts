@@ -93,13 +93,16 @@ export interface PlaylistSummary {
   id: string;
   title: string;
   itemCount: number;
+  start: number;
+  end: number;
+  total: number;
 }
 
 export function newPlaylistJobs(
   meta: PlaylistMeta,
 ): { playlist: PlaylistSummary; jobs: Job[] } {
   const now = Date.now();
-  const jobs = meta.entries.map((entry, index) =>
+  const jobs = meta.entries.map((entry) =>
     insertJob({
       url: entry.url,
       title: entry.title,
@@ -107,14 +110,21 @@ export function newPlaylistJobs(
       thumbnail: entry.thumbnail,
       playlistId: meta.id,
       playlistTitle: meta.title,
-      playlistIndex: index + 1,
+      playlistIndex: entry.index,
       createdAt: now,
     }),
   );
   prune();
   pump();
   return {
-    playlist: { id: meta.id, title: meta.title, itemCount: jobs.length },
+    playlist: {
+      id: meta.id,
+      title: meta.title,
+      itemCount: jobs.length,
+      start: meta.start,
+      end: meta.end,
+      total: meta.total,
+    },
     jobs,
   };
 }
@@ -147,9 +157,23 @@ export interface CompletedFile {
   filePath: string;
 }
 
-export function listCompletedFiles(): CompletedFile[] {
+export interface CompletedFilter {
+  kind?: "singles" | "playlists" | "all";
+  playlistId?: string;
+}
+
+export function listCompletedFiles(
+  filter: CompletedFilter = {},
+): CompletedFile[] {
+  const { kind = "all", playlistId } = filter;
   return listJobs()
     .filter((job) => job.status === "completed" && job.filePath !== null)
+    .filter((job) => {
+      if (playlistId) return job.playlistId === playlistId;
+      if (kind === "singles") return job.playlistId === null;
+      if (kind === "playlists") return job.playlistId !== null;
+      return true;
+    })
     .map((job) => ({
       id: job.id,
       title: job.title ?? "audio",
@@ -181,6 +205,23 @@ export function cancelPlaylist(playlistId: string): number {
   }
   if (count > 0) pump();
   return count;
+}
+
+export function retryJob(id: string): Job | null {
+  const job = store.jobs.get(id);
+  if (!job) return null;
+  if (job.status !== "error" && job.status !== "canceled") return null;
+  job.status = "queued";
+  job.progress = 0;
+  job.downloadedBytes = 0;
+  job.totalBytes = null;
+  job.speedBps = null;
+  job.etaSec = null;
+  job.filePath = null;
+  job.error = null;
+  job.updatedAt = Date.now();
+  pump();
+  return job;
 }
 
 function killTree(pid: number): void {

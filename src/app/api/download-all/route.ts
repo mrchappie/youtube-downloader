@@ -23,8 +23,16 @@ function uniqueName(title: string, used: Set<string>): string {
   return name;
 }
 
-export async function GET() {
-  const candidates = listCompletedFiles();
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const playlistId = searchParams.get("playlist") ?? undefined;
+  const kindParam = searchParams.get("kind");
+  const kind =
+    kindParam === "singles" || kindParam === "playlists" ? kindParam : "all";
+
+  const candidates = listCompletedFiles(
+    playlistId ? { playlistId } : { kind },
+  );
 
   const existing: CompletedFile[] = [];
   for (const file of candidates) {

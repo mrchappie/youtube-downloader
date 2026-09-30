@@ -2,17 +2,21 @@
 
 A Next.js web app that downloads YouTube videos as MP3 files, with live progress.
 
-Paste a video or playlist URL, watch the progress bars, then download the finished MP3s.
+Two pages: **Single video** (default) and **Playlist**. Paste a URL, watch the
+progress bars, then download the finished MP3s.
 
 ## Features
 
 - Single YouTube URL → MP3 (audio extraction + transcoding)
-- Playlist support: each video becomes its own job, grouped in the UI
+- Separate Playlist page; each video becomes its own job, grouped in the UI
+- Playlist batches: download a `From`–`To` range (default 1–100), then click
+  **Download next** for the following batch
+- Range safety: warns above 200 items and hard-caps a batch at 500
 - Queue with a concurrency cap (3 downloads at once, rest wait their turn)
 - Live progress bar (percent, downloaded/total, speed)
-- Job list with status, thumbnail, title, uploader, duration
+- Retry any failed or canceled download
 - Cancel a single download or an entire playlist
-- Download all finished MP3s at once as a ZIP
+- Per-playlist or singles-only ZIP download
 - Storage sidebar to clear failed/finished/old files
 - Input validation (YouTube URLs only)
 
@@ -41,11 +45,12 @@ npm run lint                 # eslint
 
 ## How it works
 
-1. `POST /api/jobs` validates the URL. Playlist URLs are enumerated with
-   `yt-dlp --flat-playlist`, and one queued job is created per video.
+1. `POST /api/jobs` takes a `mode` (`single` or `playlist`) plus an optional
+   `start`/`end` range. Playlist URLs are enumerated with `yt-dlp --flat-playlist`
+   and one queued job is created per video in the range.
 2. A scheduler runs at most 3 jobs at once; the rest stay `queued`.
 3. yt-dlp prints machine-readable progress lines; the server parses them into job state.
-4. The UI polls `GET /api/jobs` (every 1s) and renders progress, grouping playlist items.
+4. The UI polls `GET /api/jobs` (every 1s), grouping playlist items.
 5. When done, `GET /api/jobs/:id/file` streams the MP3.
 
 Downloaded files are written to the OS temp directory (`<tmp>/ytdl-web/<jobId>/`), not the repo.
@@ -55,12 +60,13 @@ Downloaded files are written to the OS temp directory (`<tmp>/ytdl-web/<jobId>/`
 | Method   | Route                   | Description                          |
 | -------- | ----------------------- | ------------------------------------ |
 | `GET`    | `/api/jobs`             | List jobs                            |
-| `POST`   | `/api/jobs`             | Create job(s) from `{ "url": "..." }` |
+| `POST`   | `/api/jobs`             | Create job(s): `{ url, mode?, start?, end? }` |
 | `GET`    | `/api/jobs/:id`         | Get one job                          |
 | `DELETE` | `/api/jobs/:id`         | Cancel a job                         |
+| `POST`   | `/api/jobs/:id/retry`   | Retry a failed/canceled job          |
 | `GET`    | `/api/jobs/:id/file`    | Download the finished MP3           |
 | `DELETE` | `/api/playlists/:id`    | Cancel every active job in a playlist |
-| `GET`    | `/api/download-all`     | Download all finished MP3s as a ZIP  |
+| `GET`    | `/api/download-all`     | ZIP of finished MP3s (`?kind=singles\|playlists` or `?playlist=<id>`) |
 | `GET`    | `/api/cleanup`          | Storage stats (counts + bytes on disk) |
 | `POST`   | `/api/cleanup`          | Clear files `{ "scope": "failed" \| "completed" \| "old" \| "all" }` |
 
@@ -79,7 +85,6 @@ files removed automatically, so only fully downloadable MP3s occupy disk.
 
 ## Roadmap
 
-- [ ] Per-playlist ZIP download
 - [ ] Playlist preview with item selection
 - [ ] Format/quality selection (bitrate, video)
 - [ ] Persist jobs (SQLite) instead of in-memory

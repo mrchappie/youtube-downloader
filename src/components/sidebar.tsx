@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { CleanupScope, StorageStats } from "@/lib/jobs";
 import { formatAge, formatBytes } from "@/lib/format";
 
@@ -14,15 +16,17 @@ interface Action {
 const ACTIONS: Action[] = [
   { scope: "failed", label: "Clear failed", count: (s) => s.failed },
   { scope: "completed", label: "Clear finished", count: (s) => s.completed },
-  {
-    scope: "old",
-    label: "Clear old",
-    count: (s) => s.old,
-  },
+  { scope: "old", label: "Clear old", count: (s) => s.old },
   { scope: "all", label: "Clear everything", count: (s) => s.totalJobs, danger: true },
 ];
 
+const NAV = [
+  { href: "/", label: "Single video" },
+  { href: "/playlist", label: "Playlist" },
+];
+
 export default function Sidebar() {
+  const pathname = usePathname();
   const [stats, setStats] = useState<StorageStats | null>(null);
   const [busy, setBusy] = useState<CleanupScope | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -79,24 +83,47 @@ export default function Sidebar() {
   return (
     <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-white/10 bg-white/[0.02] p-5 md:sticky md:top-0 md:h-screen md:w-72 md:border-b-0 md:border-r">
       <div>
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
           <span className="text-sm font-semibold tracking-tight text-white">
             YouTube Downloader
           </span>
-        </div>
-        <p className="mt-3 text-xs uppercase tracking-wide text-zinc-500">Storage</p>
+        </Link>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <p className="text-2xl font-semibold text-white">
-          {stats ? formatBytes(stats.bytesOnDisk) : "—"}
+      <nav className="flex flex-col gap-1">
+        {NAV.map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                active
+                  ? "bg-white/10 text-white"
+                  : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+              }`}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div>
+        <p className="mb-3 text-xs uppercase tracking-wide text-zinc-500">
+          Storage
         </p>
-        <p className="mt-1 text-xs text-zinc-500">
-          {stats
-            ? `${stats.totalJobs} job${stats.totalJobs === 1 ? "" : "s"} · ${stats.active} active`
-            : "on disk"}
-        </p>
+        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+          <p className="text-2xl font-semibold text-white">
+            {stats ? formatBytes(stats.bytesOnDisk) : "—"}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            {stats
+              ? `${stats.totalJobs} job${stats.totalJobs === 1 ? "" : "s"} · ${stats.active} active`
+              : "on disk"}
+          </p>
+        </div>
       </div>
 
       <nav className="flex flex-col gap-2">
