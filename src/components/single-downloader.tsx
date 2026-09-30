@@ -15,6 +15,9 @@ export default function SingleDownloader() {
 
   const singles = jobs.filter((job) => !job.playlistId);
   const completed = singles.filter((job) => job.status === "completed").length;
+  const failed = singles.filter(
+    (job) => job.status === "error" || job.status === "canceled",
+  ).length;
   const playlistHint = looksLikePlaylist(url);
 
   async function onSubmit(event: React.FormEvent) {
@@ -62,6 +65,14 @@ export default function SingleDownloader() {
       const data = (await res.json()) as { job: PublicJob };
       setJobs((prev) => prev.map((j) => (j.id === id ? data.job : j)));
     }
+  }
+
+  async function retryAllFailed() {
+    await fetch("/api/retry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "singles" }),
+    }).catch(() => {});
   }
 
   return (
@@ -115,17 +126,30 @@ export default function SingleDownloader() {
 
       <div className="mt-10 mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-medium text-zinc-400">Downloads</h2>
-        <a
-          href="/api/download-all?kind=singles"
-          aria-disabled={completed === 0}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-            completed === 0
-              ? "pointer-events-none border border-white/10 text-zinc-600"
-              : "bg-white text-zinc-900 hover:bg-zinc-200"
-          }`}
-        >
-          Download all{completed > 0 ? ` (${completed})` : ""}
-        </a>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={retryAllFailed}
+            disabled={failed === 0}
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+              failed === 0
+                ? "cursor-not-allowed border border-white/10 text-zinc-600"
+                : "border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10"
+            }`}
+          >
+            Retry all failed{failed > 0 ? ` (${failed})` : ""}
+          </button>
+          <a
+            href="/api/download-all?kind=singles"
+            aria-disabled={completed === 0}
+            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+              completed === 0
+                ? "pointer-events-none border border-white/10 text-zinc-600"
+                : "bg-white text-zinc-900 hover:bg-zinc-200"
+            }`}
+          >
+            Download all{completed > 0 ? ` (${completed})` : ""}
+          </a>
+        </div>
       </div>
 
       <section className="space-y-3">

@@ -140,6 +140,14 @@ export default function PlaylistDownloader() {
     }
   }
 
+  async function retryAllFailed() {
+    await fetch("/api/retry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "playlists" }),
+    }).catch(() => {});
+  }
+
   async function cancelPlaylist(id: string) {
     setJobs((prev) =>
       prev.map((j) =>
@@ -183,6 +191,10 @@ export default function PlaylistDownloader() {
   const nextEnd = batch
     ? Math.min(nextStart + (batch.end - batch.start + 1) - 1, batch.total)
     : 0;
+  const failedTotal = jobs.filter(
+    (job) =>
+      job.playlistId && (job.status === "error" || job.status === "canceled"),
+  ).length;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
@@ -281,7 +293,22 @@ export default function PlaylistDownloader() {
         </div>
       )}
 
-      <section className="mt-8 space-y-3">
+      <div className="mt-8 mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-medium text-zinc-400">Playlists</h2>
+        <button
+          onClick={retryAllFailed}
+          disabled={failedTotal === 0}
+          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+            failedTotal === 0
+              ? "cursor-not-allowed border border-white/10 text-zinc-600"
+              : "border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10"
+          }`}
+        >
+          Retry all failed{failedTotal > 0 ? ` (${failedTotal})` : ""}
+        </button>
+      </div>
+
+      <section className="space-y-3">
         {groups.length === 0 && (
           <p className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-zinc-500">
             No playlists yet. Paste a playlist link above to get started.

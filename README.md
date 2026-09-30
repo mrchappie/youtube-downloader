@@ -14,7 +14,7 @@ progress bars, then download the finished MP3s.
 - Range safety: warns above 200 items and hard-caps a batch at 500
 - Queue with a concurrency cap (3 downloads at once, rest wait their turn)
 - Live progress bar (percent, downloaded/total, speed)
-- Retry any failed or canceled download
+- Retry failed downloads individually, or all at once per page
 - Cancel a single download or an entire playlist
 - Per-playlist or singles-only ZIP download
 - Storage sidebar to clear failed/finished/old files
@@ -64,6 +64,7 @@ Downloaded files are written to the OS temp directory (`<tmp>/ytdl-web/<jobId>/`
 | `GET`    | `/api/jobs/:id`         | Get one job                          |
 | `DELETE` | `/api/jobs/:id`         | Cancel a job                         |
 | `POST`   | `/api/jobs/:id/retry`   | Retry a failed/canceled job          |
+| `POST`   | `/api/retry`            | Retry all failed `{ kind?: "singles"\|"playlists"\|"all", playlistId? }` |
 | `GET`    | `/api/jobs/:id/file`    | Download the finished MP3           |
 | `DELETE` | `/api/playlists/:id`    | Cancel every active job in a playlist |
 | `GET`    | `/api/download-all`     | ZIP of finished MP3s (`?kind=singles\|playlists` or `?playlist=<id>`) |

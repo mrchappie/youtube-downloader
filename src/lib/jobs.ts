@@ -207,10 +207,8 @@ export function cancelPlaylist(playlistId: string): number {
   return count;
 }
 
-export function retryJob(id: string): Job | null {
-  const job = store.jobs.get(id);
-  if (!job) return null;
-  if (job.status !== "error" && job.status !== "canceled") return null;
+function resetForRetry(job: Job): boolean {
+  if (job.status !== "error" && job.status !== "canceled") return false;
   job.status = "queued";
   job.progress = 0;
   job.downloadedBytes = 0;
@@ -220,8 +218,36 @@ export function retryJob(id: string): Job | null {
   job.filePath = null;
   job.error = null;
   job.updatedAt = Date.now();
+  return true;
+}
+
+export function retryJob(id: string): Job | null {
+  const job = store.jobs.get(id);
+  if (!job || !resetForRetry(job)) return null;
   pump();
   return job;
+}
+
+export interface RetryFilter {
+  kind?: "singles" | "playlists" | "all";
+  playlistId?: string;
+}
+
+export function retryJobs(filter: RetryFilter = {}): number {
+  const { kind = "all", playlistId } = filter;
+  let count = 0;
+  for (const job of listJobs()) {
+    if (playlistId) {
+      if (job.playlistId !== playlistId) continue;
+    } else if (kind === "singles") {
+      if (job.playlistId !== null) continue;
+    } else if (kind === "playlists") {
+      if (job.playlistId === null) continue;
+    }
+    if (resetForRetry(job)) count += 1;
+  }
+  if (count > 0) pump();
+  return count;
 }
 
 function killTree(pid: number): void {
