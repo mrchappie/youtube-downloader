@@ -1,6 +1,7 @@
 import { newJob, newPlaylistJobs, listJobs } from "@/lib/jobs";
 import { fetchPlaylist, isPlaylistUrl, normalizeYouTubeUrl } from "@/lib/ytdlp";
 import { PLAYLIST_DEFAULT_SIZE, PLAYLIST_MAX_SIZE } from "@/lib/playlist";
+import { sanitizeAudioOptions } from "@/lib/audio-options";
 import { toPublicJob } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -34,6 +35,7 @@ export async function POST(request: Request) {
     record.mode === "playlist" || record.mode === "single"
       ? record.mode
       : "auto";
+  const options = sanitizeAudioOptions(record.options);
 
   const normalized = normalizeYouTubeUrl(url);
   if (!normalized) {
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
 
     try {
       const meta = await fetchPlaylist(normalized, { start, end });
-      const { playlist, jobs } = newPlaylistJobs(meta);
+      const { playlist, jobs } = newPlaylistJobs(meta, options);
       return Response.json(
         { playlist, jobs: jobs.map(toPublicJob) },
         { status: 201 },
@@ -86,6 +88,6 @@ export async function POST(request: Request) {
     }
   }
 
-  const job = newJob(normalized);
+  const job = newJob(normalized, options);
   return Response.json({ job: toPublicJob(job) }, { status: 201 });
 }

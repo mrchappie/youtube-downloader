@@ -8,9 +8,11 @@ import {
   PROGRESS_PREFIX,
   PROGRESS_TEMPLATE,
   YTDLP_PATH,
+  buildAudioArgs,
   fetchMetadata,
   type PlaylistMeta,
 } from "./ytdlp";
+import { DEFAULT_AUDIO_OPTIONS, type AudioOptions } from "./audio-options";
 import type { Job } from "./types";
 
 const CONCURRENCY = 3;
@@ -53,6 +55,7 @@ interface InsertFields {
   playlistTitle?: string | null;
   playlistIndex?: number | null;
   playlistTotal?: number | null;
+  options?: AudioOptions;
   createdAt?: number;
 }
 
@@ -77,6 +80,7 @@ function insertJob(fields: InsertFields): Job {
     playlistTitle: fields.playlistTitle ?? null,
     playlistIndex: fields.playlistIndex ?? null,
     playlistTotal: fields.playlistTotal ?? null,
+    options: fields.options ?? DEFAULT_AUDIO_OPTIONS,
     createdAt: fields.createdAt ?? now,
     updatedAt: now,
   };
@@ -84,8 +88,11 @@ function insertJob(fields: InsertFields): Job {
   return job;
 }
 
-export function newJob(url: string): Job {
-  const job = insertJob({ url });
+export function newJob(
+  url: string,
+  options: AudioOptions = DEFAULT_AUDIO_OPTIONS,
+): Job {
+  const job = insertJob({ url, options });
   prune();
   pump();
   return job;
@@ -102,6 +109,7 @@ export interface PlaylistSummary {
 
 export function newPlaylistJobs(
   meta: PlaylistMeta,
+  options: AudioOptions = DEFAULT_AUDIO_OPTIONS,
 ): { playlist: PlaylistSummary; jobs: Job[] } {
   const now = Date.now();
   const jobs = meta.entries.map((entry) =>
@@ -114,6 +122,7 @@ export function newPlaylistJobs(
       playlistTitle: meta.title,
       playlistIndex: entry.index,
       playlistTotal: meta.total,
+      options,
       createdAt: now,
     }),
   );
@@ -309,11 +318,7 @@ async function run(job: Job): Promise<void> {
     const args = [
       ...BASE_ARGS,
       "--newline",
-      "-x",
-      "--audio-format",
-      "mp3",
-      "--audio-quality",
-      "0",
+      ...buildAudioArgs(job.options),
       ...(FFMPEG_DIR ? ["--ffmpeg-location", FFMPEG_DIR] : []),
       "--progress-template",
       PROGRESS_TEMPLATE,

@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/sidebar";
+import TopNav from "@/components/top-nav";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/theme";
+import { SettingsProvider } from "@/lib/settings";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,10 +35,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ThemeProvider>
           <I18nProvider>
-            <div className="flex min-h-screen flex-col bg-background md:flex-row">
-              <Sidebar />
-              <main className="min-w-0 flex-1">{children}</main>
-            </div>
+            <SettingsProvider>
+              <div className="flex min-h-screen flex-col bg-background">
+                <TopNav />
+                <div className="flex flex-1 flex-col md:flex-row">
+                  <Sidebar />
+                  <main className="min-w-0 flex-1">{children}</main>
+                </div>
+              </div>
+            </SettingsProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>

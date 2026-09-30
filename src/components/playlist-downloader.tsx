@@ -10,6 +10,7 @@ import {
 } from "@/lib/playlist";
 import { isActiveStatus } from "@/lib/job-status";
 import { useI18n } from "@/lib/i18n";
+import { useSettings } from "@/lib/settings";
 import JobRow from "./job-row";
 import type { JobStatus, PublicJob } from "@/lib/types";
 
@@ -28,6 +29,7 @@ interface PlaylistGroup {
 
 export default function PlaylistDownloader() {
   const { t } = useI18n();
+  const { options } = useSettings();
   const { jobs, setJobs } = useJobs();
   const [url, setUrl] = useState("");
   const [start, setStart] = useState("1");
@@ -81,6 +83,7 @@ export default function PlaylistDownloader() {
           mode: "playlist",
           start: rawStart,
           end: rawEnd,
+          options,
         }),
       });
       const data = (await res.json()) as {

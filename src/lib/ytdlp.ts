@@ -2,6 +2,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import ytdlp from "youtube-dl-exec";
 import ffmpegPath from "ffmpeg-static";
+import type { AudioOptions } from "./audio-options";
 
 const ytdlpConstants = (
   ytdlp as unknown as { constants?: { YOUTUBE_DL_PATH?: string } }
@@ -18,6 +19,7 @@ export const YTDLP_PATH =
   );
 
 export const FFMPEG_DIR = ffmpegPath ? path.dirname(ffmpegPath) : null;
+export const FFMPEG_PATH = ffmpegPath;
 
 export const PROGRESS_PREFIX = "PROG|";
 
@@ -242,4 +244,94 @@ export function fetchMetadata(url: string): Promise<VideoMeta> {
       }
     });
   });
+}
+
+let ytdlpVersionCache: string | null | undefined;
+let ffmpegVersionCache: string | null | undefined;
+
+function runCapture(cmd: string, args: string[]): Promise<string | null> {
+  return new Promise((resolve) => {
+    const child = spawn(/* turbopackIgnore: true */ cmd, args, {
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => (stdout += d.toString()));
+    child.stderr.on("data", (d) => (stderr += d.toString()));
+    child.on("error", () => resolve(null));
+    child.on("close", () => resolve((stdout || stderr).trim() || null));
+  });
+}
+
+export async function getYtdlpVersion(): Promise<string | null> {
+  if (ytdlpVersionCache !== undefined) return ytdlpVersionCache;
+  const output = await runCapture(YTDLP_PATH, ["--version"]);
+  ytdlpVersionCache = output ? (output.split(/\r?\n/)[0] ?? "").trim() : null;
+  return ytdlpVersionCache;
+}
+
+export async function getFfmpegVersion(): Promise<string | null> {
+  if (ffmpegVersionCache !== undefined) return ffmpegVersionCache;
+  if (!FFMPEG_PATH) {
+    ffmpegVersionCache = null;
+    return null;
+  }
+  const output = await runCapture(FFMPEG_PATH, ["-version"]);
+  const match = output?.match(/ffmpeg version (\S+)/i);
+  ffmpegVersionCache = match
+    ? match[1]
+    : output
+      ? (output.split(/\r?\n/)[0] ?? "").trim()
+      : null;
+  return ffmpegVersionCache;
+}
+
+export interface UpdateCheck {
+  current: string | null;
+  latest: string | null;
+  updateAvailable: boolean;
+  url: string;
+  error?: string;
+}
+
+export async function checkYtdlpLatest(): Promise<UpdateCheck> {
+  const url = "https://github.com/yt-dlp/yt-dlp/releases/latest";
+  const current = await getYtdlpVersion();
+  try {
+    const res = await fetch(
+      "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest",
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+          "User-Agent": "youtube-downloader-local",
+        },
+        cache: "no-store",
+      },
+    );
+    if (!res.ok) throw new Error(`GitHub responded ${res.status}`);
+    const data = (await res.json()) as { tag_name?: string };
+    const latest = data.tag_name ?? null;
+    return {
+      current,
+      latest,
+      updateAvailable: Boolean(current && latest && latest !== current),
+      url,
+    };
+  } catch (err) {
+    return {
+      current,
+      latest: null,
+      updateAvailable: false,
+      url,
+      error: err instanceof Error ? err.message : "check failed",
+    };
+  }
+}
+
+export function buildAudioArgs(options: AudioOptions): string[] {
+  const quality = options.quality === "v0" ? "0" : `${options.quality}K`;
+  const args = ["-x", "--audio-format", "mp3", "--audio-quality", quality];
+  if (options.embedThumbnail) args.push("--embed-thumbnail");
+  if (options.addMetadata) args.push("--add-metadata");
+  return args;
 }

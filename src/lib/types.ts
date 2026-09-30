@@ -1,3 +1,5 @@
+import type { AudioOptions } from "./audio-options";
+
 export type JobStatus =
   | "queued"
   | "resolving"
@@ -26,6 +28,7 @@ export interface Job {
   playlistTitle: string | null;
   playlistIndex: number | null;
   playlistTotal: number | null;
+  options: AudioOptions;
   createdAt: number;
   updatedAt: number;
 }

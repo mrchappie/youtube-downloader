@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useJobs } from "@/lib/use-jobs";
 import { looksLikePlaylist } from "@/lib/playlist";
 import { useI18n } from "@/lib/i18n";
+import { useSettings } from "@/lib/settings";
 import JobRow from "./job-row";
 import type { JobStatus, PublicJob } from "@/lib/types";
 
 export default function SingleDownloader() {
   const { t } = useI18n();
+  const { options } = useSettings();
   const { jobs, setJobs } = useJobs();
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +38,7 @@ export default function SingleDownloader() {
       const res = await fetch("/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: trimmed, mode: "single" }),
+        body: JSON.stringify({ url: trimmed, mode: "single", options }),
       });
       const data = (await res.json()) as { job?: PublicJob; error?: string };
       if (!res.ok || !data.job) {

@@ -1,12 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import type { CleanupScope, StorageStats } from "@/lib/jobs";
 import { formatAge, formatBytes } from "@/lib/format";
-import { LOCALES, useI18n } from "@/lib/i18n";
-import { useTheme, type Theme } from "@/lib/theme";
+import { useI18n } from "@/lib/i18n";
 
 interface Action {
   scope: CleanupScope;
@@ -23,21 +20,8 @@ const ACTIONS: Action[] = [
   { scope: "all", labelKey: "action.all", count: (s) => s.totalJobs, danger: true },
 ];
 
-const NAV = [
-  { href: "/", labelKey: "nav.single" },
-  { href: "/playlist", labelKey: "nav.playlist" },
-];
-
-const THEMES: { value: Theme; labelKey: string }[] = [
-  { value: "system", labelKey: "theme.system" },
-  { value: "light", labelKey: "theme.light" },
-  { value: "dark", labelKey: "theme.dark" },
-];
-
 export default function Sidebar() {
-  const pathname = usePathname();
-  const { t, locale, setLocale } = useI18n();
-  const { theme, setTheme } = useTheme();
+  const { t } = useI18n();
   const [stats, setStats] = useState<StorageStats | null>(null);
   const [busy, setBusy] = useState<CleanupScope | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -93,77 +77,7 @@ export default function Sidebar() {
   const oldAge = stats ? formatAge(stats.oldAgeMs) : "1h";
 
   return (
-    <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-border bg-card p-5 md:sticky md:top-0 md:h-screen md:w-72 md:border-b-0 md:border-r">
-      <Link href="/" className="flex items-center gap-2">
-        <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-        <span className="text-sm font-semibold tracking-tight text-foreground">
-          YouTube Downloader
-        </span>
-      </Link>
-
-      <nav className="flex flex-col gap-1">
-        {NAV.map((item) => {
-          const active = pathname === item.href;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
-                active
-                  ? "bg-hover text-foreground"
-                  : "text-muted hover:bg-hover hover:text-foreground"
-              }`}
-            >
-              {t(item.labelKey)}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-wide text-muted-2">
-            {t("lang.label")}
-          </span>
-          <div className="flex rounded-lg border border-border p-0.5">
-            {LOCALES.map((item) => (
-              <button
-                key={item.value}
-                onClick={() => setLocale(item.value)}
-                className={`flex-1 rounded-md px-2 py-1 text-[11px] font-semibold transition ${
-                  locale === item.value
-                    ? "bg-foreground text-background"
-                    : "text-muted hover:text-foreground"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-wide text-muted-2">
-            {t("theme.label")}
-          </span>
-          <div className="flex rounded-lg border border-border p-0.5">
-            {THEMES.map((item) => (
-              <button
-                key={item.value}
-                onClick={() => setTheme(item.value)}
-                className={`flex-1 rounded-md px-1.5 py-1 text-[11px] font-semibold transition ${
-                  theme === item.value
-                    ? "bg-foreground text-background"
-                    : "text-muted hover:text-foreground"
-                }`}
-              >
-                {t(item.labelKey)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
+    <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-border bg-card p-5 md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:w-72 md:overflow-y-auto md:border-b-0 md:border-r">
       <div>
         <p className="mb-3 text-xs uppercase tracking-wide text-muted-2">
           {t("sidebar.storage")}
