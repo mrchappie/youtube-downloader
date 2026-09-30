@@ -71,8 +71,11 @@ export default function TopNav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
-      <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
-        <Link href="/" className="flex items-center gap-2.5">
+      <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 py-2">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 px-4 sm:px-5 md:w-72 md:shrink-0"
+        >
           <LogoIcon className="h-7 w-7" />
           <span className="text-sm font-semibold tracking-tight text-foreground">
             YouTube Downloader
@@ -100,7 +103,7 @@ export default function TopNav() {
           })}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2 px-4 sm:px-5">
           <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
             {THEMES.map((value) => (
               <button
