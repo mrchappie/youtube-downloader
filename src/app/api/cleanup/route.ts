@@ -3,7 +3,13 @@ import { cleanup, storageStats, type CleanupScope } from "@/lib/jobs";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SCOPES: readonly CleanupScope[] = ["failed", "completed", "old", "all"];
+const SCOPES: readonly CleanupScope[] = [
+  "failed",
+  "canceled",
+  "completed",
+  "old",
+  "all",
+];
 
 function isScope(value: unknown): value is CleanupScope {
   return typeof value === "string" && (SCOPES as readonly string[]).includes(value);

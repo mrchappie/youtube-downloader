@@ -69,13 +69,14 @@ Downloaded files are written to the OS temp directory (`<tmp>/ytdl-web/<jobId>/`
 | `DELETE` | `/api/playlists/:id`    | Cancel every active job in a playlist |
 | `GET`    | `/api/download-all`     | ZIP of finished MP3s (`?kind=singles\|playlists` or `?playlist=<id>`) |
 | `GET`    | `/api/cleanup`          | Storage stats (counts + bytes on disk) |
-| `POST`   | `/api/cleanup`          | Clear files `{ "scope": "failed" \| "completed" \| "old" \| "all" }` |
+| `POST`   | `/api/cleanup`          | Clear files `{ "scope": "failed" \| "canceled" \| "completed" \| "old" \| "all" }` |
 
 ## Storage management
 
 The sidebar shows live disk usage and buttons to clear files:
 
-- **Clear failed** — errored/canceled jobs
+- **Clear failed** — errored jobs
+- **Clear canceled** — canceled jobs
 - **Clear finished** — completed MP3s
 - **Clear old** — jobs older than 1 hour
 - **Clear everything** — all non-active jobs

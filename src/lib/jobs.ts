@@ -485,6 +485,7 @@ async function removeJobFiles(job: Job): Promise<number> {
 export interface StorageStats {
   totalJobs: number;
   failed: number;
+  canceled: number;
   completed: number;
   old: number;
   active: number;
@@ -497,6 +498,7 @@ export async function storageStats(): Promise<StorageStats> {
   const now = Date.now();
   let bytesOnDisk = 0;
   let failed = 0;
+  let canceled = 0;
   let completed = 0;
   let old = 0;
   let active = 0;
@@ -504,6 +506,7 @@ export async function storageStats(): Promise<StorageStats> {
   for (const job of all) {
     if (isActive(job)) active += 1;
     if (job.status === "error") failed += 1;
+    if (job.status === "canceled") canceled += 1;
     if (job.status === "completed") completed += 1;
     if (!isActive(job) && now - job.createdAt > OLD_AGE_MS) old += 1;
     bytesOnDisk += await dirSize(jobDir(job.id));
@@ -512,6 +515,7 @@ export async function storageStats(): Promise<StorageStats> {
   return {
     totalJobs: all.length,
     failed,
+    canceled,
     completed,
     old,
     active,
@@ -520,7 +524,7 @@ export async function storageStats(): Promise<StorageStats> {
   };
 }
 
-export type CleanupScope = "failed" | "completed" | "old" | "all";
+export type CleanupScope = "failed" | "canceled" | "completed" | "old" | "all";
 
 export interface CleanupResult {
   scope: CleanupScope;
@@ -534,7 +538,9 @@ export async function cleanup(scope: CleanupScope): Promise<CleanupResult> {
     if (isActive(job)) return false;
     switch (scope) {
       case "failed":
-        return job.status === "error" || job.status === "canceled";
+        return job.status === "error";
+      case "canceled":
+        return job.status === "canceled";
       case "completed":
         return job.status === "completed";
       case "old":

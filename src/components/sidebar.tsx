@@ -15,6 +15,7 @@ interface Action {
 
 const ACTIONS: Action[] = [
   { scope: "failed", label: "Clear failed", count: (s) => s.failed },
+  { scope: "canceled", label: "Clear canceled", count: (s) => s.canceled },
   { scope: "completed", label: "Clear finished", count: (s) => s.completed },
   { scope: "old", label: "Clear old", count: (s) => s.old },
   { scope: "all", label: "Clear everything", count: (s) => s.totalJobs, danger: true },
