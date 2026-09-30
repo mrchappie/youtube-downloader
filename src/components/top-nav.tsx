@@ -13,6 +13,24 @@ const NAV = [
 
 const THEMES: Theme[] = ["system", "light", "dark"];
 
+function LogoIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+      <rect width="64" height="64" rx="14" fill="#dc2626" />
+      <path d="M32 13v24" stroke="#fff" strokeWidth="7" strokeLinecap="round" />
+      <path
+        d="M22 29l10 10 10-10"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M19 49h26" stroke="#fff" strokeWidth="7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function ThemeIcon({ name }: { name: Theme }) {
   const common = {
     viewBox: "0 0 24 24",
@@ -53,13 +71,15 @@ export default function TopNav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur">
-      <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-5 py-2">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+      <div className="flex min-h-16 flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-5">
+        <Link href="/" className="flex items-center gap-2.5">
+          <LogoIcon className="h-7 w-7" />
           <span className="text-sm font-semibold tracking-tight text-foreground">
             YouTube Downloader
           </span>
         </Link>
+
+        <span className="hidden h-6 w-px bg-border sm:block" aria-hidden="true" />
 
         <nav className="flex items-center gap-1">
           {NAV.map((item) => {
