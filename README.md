@@ -1,9 +1,40 @@
 # YouTube Downloader
 
+> **This project is AI-generated.** Every line of code, the architecture, the
+> documentation and the translations were produced by an AI coding assistant
+> ([opencode](https://opencode.ai) running `deepseek-flash`). The human
+> contributor's only involvement was **brainstorming, prompting, reviewing and
+> directing** the work.
+
 A Next.js web app that downloads YouTube videos as MP3 files, with live progress.
 
-Two pages: **Single video** (default) and **Playlist**. Paste a URL, watch the
-progress bars, then download the finished MP3s.
+Three pages: **Single video** (default), **Playlist** and **Settings**. Paste a
+URL, watch the progress bars, then download the finished MP3s.
+
+## Screenshots
+
+### Single video
+
+![Single video page](docs/screenshots/single.png)
+
+### Playlist
+
+![Playlist page showing a grouped playlist with progress and a failed item](docs/screenshots/playlist.png)
+
+### Settings
+
+![Settings page with audio options and dependency versions](docs/screenshots/settings.png)
+
+<details>
+<summary>Dark theme previews</summary>
+
+![Single video page in dark mode](docs/screenshots/single-dark.png)
+
+![Playlist page in dark mode](docs/screenshots/playlist-dark.png)
+
+![Settings page in dark mode](docs/screenshots/settings-dark.png)
+
+</details>
 
 ## Features
 
