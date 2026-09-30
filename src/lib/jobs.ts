@@ -9,22 +9,13 @@ import {
   PROGRESS_TEMPLATE,
   YTDLP_PATH,
   fetchMetadata,
+  type PlaylistMeta,
 } from "./ytdlp";
 import type { Job } from "./types";
 
-const MAX_JOBS = 50;
+const CONCURRENCY = 3;
+const MAX_JOBS = 1000;
 export const OLD_AGE_MS = 60 * 60 * 1000;
-
-const ACTIVE_STATUSES = new Set<Job["status"]>([
-  "queued",
-  "resolving",
-  "downloading",
-  "converting",
-]);
-
-export function isActive(job: Job): boolean {
-  return ACTIVE_STATUSES.has(job.status);
-}
 
 interface JobStore {
   jobs: Map<string, Job>;
@@ -40,16 +31,40 @@ function jobDir(id: string): string {
   return path.join(os.tmpdir(), "ytdl-web", id);
 }
 
-export function newJob(url: string): Job {
+export function isRunning(job: Job): boolean {
+  return (
+    job.status === "resolving" ||
+    job.status === "downloading" ||
+    job.status === "converting"
+  );
+}
+
+export function isActive(job: Job): boolean {
+  return job.status === "queued" || isRunning(job);
+}
+
+interface InsertFields {
+  url: string;
+  title?: string | null;
+  uploader?: string | null;
+  durationSec?: number | null;
+  thumbnail?: string | null;
+  playlistId?: string | null;
+  playlistTitle?: string | null;
+  playlistIndex?: number | null;
+  createdAt?: number;
+}
+
+function insertJob(fields: InsertFields): Job {
   const now = Date.now();
   const job: Job = {
     id: crypto.randomUUID(),
-    url,
+    url: fields.url,
     status: "queued",
-    title: null,
-    uploader: null,
-    durationSec: null,
-    thumbnail: null,
+    title: fields.title ?? null,
+    uploader: fields.uploader ?? null,
+    durationSec: fields.durationSec ?? null,
+    thumbnail: fields.thumbnail ?? null,
     progress: 0,
     downloadedBytes: 0,
     totalBytes: null,
@@ -57,15 +72,65 @@ export function newJob(url: string): Job {
     etaSec: null,
     filePath: null,
     error: null,
-    createdAt: now,
+    playlistId: fields.playlistId ?? null,
+    playlistTitle: fields.playlistTitle ?? null,
+    playlistIndex: fields.playlistIndex ?? null,
+    createdAt: fields.createdAt ?? now,
     updatedAt: now,
   };
   store.jobs.set(job.id, job);
-  prune();
-  void run(job).catch(() => {
-    /* run() handles its own errors */
-  });
   return job;
+}
+
+export function newJob(url: string): Job {
+  const job = insertJob({ url });
+  prune();
+  pump();
+  return job;
+}
+
+export interface PlaylistSummary {
+  id: string;
+  title: string;
+  itemCount: number;
+}
+
+export function newPlaylistJobs(
+  meta: PlaylistMeta,
+): { playlist: PlaylistSummary; jobs: Job[] } {
+  const now = Date.now();
+  const jobs = meta.entries.map((entry, index) =>
+    insertJob({
+      url: entry.url,
+      title: entry.title,
+      durationSec: entry.durationSec,
+      thumbnail: entry.thumbnail,
+      playlistId: meta.id,
+      playlistTitle: meta.title,
+      playlistIndex: index + 1,
+      createdAt: now,
+    }),
+  );
+  prune();
+  pump();
+  return {
+    playlist: { id: meta.id, title: meta.title, itemCount: jobs.length },
+    jobs,
+  };
+}
+
+function pump(): void {
+  const running = listJobs().filter(isRunning).length;
+  let slots = CONCURRENCY - running;
+  if (slots <= 0) return;
+  const queued = listJobs()
+    .filter((job) => job.status === "queued")
+    .sort((a, b) => a.createdAt - b.createdAt);
+  for (const job of queued) {
+    if (slots <= 0) break;
+    slots -= 1;
+    void run(job);
+  }
 }
 
 export function getJob(id: string): Job | undefined {
@@ -92,15 +157,30 @@ export function listCompletedFiles(): CompletedFile[] {
     }));
 }
 
-export function cancelJob(id: string): boolean {
-  const job = store.jobs.get(id);
-  if (!job) return false;
-  if (job.status === "completed" || job.status === "error") return false;
-  const proc = store.procs.get(id);
+function cancelOne(job: Job): boolean {
+  if (!isActive(job)) return false;
+  const proc = store.procs.get(job.id);
   if (proc?.pid) killTree(proc.pid);
   job.status = "canceled";
   job.updatedAt = Date.now();
   return true;
+}
+
+export function cancelJob(id: string): boolean {
+  const job = store.jobs.get(id);
+  if (!job) return false;
+  const canceled = cancelOne(job);
+  if (canceled) pump();
+  return canceled;
+}
+
+export function cancelPlaylist(playlistId: string): number {
+  let count = 0;
+  for (const job of listJobs()) {
+    if (job.playlistId === playlistId && cancelOne(job)) count += 1;
+  }
+  if (count > 0) pump();
+  return count;
 }
 
 function killTree(pid: number): void {
@@ -129,143 +209,154 @@ function toNumber(value: string): number | null {
 }
 
 async function run(job: Job): Promise<void> {
-  job.status = "resolving";
-  job.updatedAt = Date.now();
-
   try {
-    const meta = await fetchMetadata(job.url);
-    job.title = meta.title;
-    job.uploader = meta.uploader;
-    job.durationSec = meta.durationSec;
-    job.thumbnail = meta.thumbnail;
-  } catch (err) {
-    job.status = "error";
-    job.error = err instanceof Error ? err.message : "Failed to resolve video";
-    job.updatedAt = Date.now();
-    return;
-  }
-
-  const afterMeta = getJob(job.id);
-  if (!afterMeta || afterMeta.status === "canceled") return;
-
-  const dir = jobDir(job.id);
-  await mkdir(dir, { recursive: true });
-  const outputTemplate = path.join(dir, "audio.%(ext)s");
-
-  const args = [
-    ...BASE_ARGS,
-    "--newline",
-    "-x",
-    "--audio-format",
-    "mp3",
-    "--audio-quality",
-    "0",
-    ...(FFMPEG_DIR ? ["--ffmpeg-location", FFMPEG_DIR] : []),
-    "--progress-template",
-    PROGRESS_TEMPLATE,
-    "-o",
-    outputTemplate,
-    "--",
-    job.url,
-  ];
-
-  await new Promise<void>((resolve) => {
-    const child = spawn(/* turbopackIgnore: true */ YTDLP_PATH, args, {
-      windowsHide: true,
-    });
-    store.procs.set(job.id, child);
-    job.status = "downloading";
+    job.status = "resolving";
     job.updatedAt = Date.now();
 
-    let log = "";
-    const onLine = (raw: string) => {
-      const line = raw.trim();
-      if (!line) return;
-      log = `${log}\n${line}`.slice(-4000);
-
-      if (line.startsWith(PROGRESS_PREFIX)) {
-        const parts = line.slice(PROGRESS_PREFIX.length).split("|");
-        const downloaded = toNumber(parts[0]);
-        const total = toNumber(parts[1]) ?? toNumber(parts[2]);
-        job.downloadedBytes = downloaded ?? job.downloadedBytes;
-        job.totalBytes = total ?? job.totalBytes;
-        job.speedBps = toNumber(parts[3]);
-        job.etaSec = toNumber(parts[4]);
-        if (job.totalBytes && job.downloadedBytes) {
-          job.progress = Math.min(
-            100,
-            Math.round((job.downloadedBytes / job.totalBytes) * 100),
-          );
-        }
-        if (job.status !== "downloading") job.status = "downloading";
+    if (job.playlistId === null) {
+      try {
+        const meta = await fetchMetadata(job.url);
+        job.title = meta.title;
+        job.uploader = meta.uploader;
+        job.durationSec = meta.durationSec;
+        job.thumbnail = meta.thumbnail;
+      } catch (err) {
+        job.status = "error";
+        job.error =
+          err instanceof Error ? err.message : "Failed to resolve video";
         job.updatedAt = Date.now();
         return;
       }
+    }
 
-      if (line.startsWith("[ExtractAudio]")) {
-        job.status = "converting";
-        job.progress = 100;
+    const current = getJob(job.id);
+    if (!current || current.status === "canceled") return;
+
+    const dir = jobDir(job.id);
+    await mkdir(dir, { recursive: true });
+    const outputTemplate = path.join(dir, "audio.%(ext)s");
+
+    const args = [
+      ...BASE_ARGS,
+      "--newline",
+      "-x",
+      "--audio-format",
+      "mp3",
+      "--audio-quality",
+      "0",
+      ...(FFMPEG_DIR ? ["--ffmpeg-location", FFMPEG_DIR] : []),
+      "--progress-template",
+      PROGRESS_TEMPLATE,
+      "-o",
+      outputTemplate,
+      "--",
+      job.url,
+    ];
+
+    await new Promise<void>((resolve) => {
+      const child = spawn(/* turbopackIgnore: true */ YTDLP_PATH, args, {
+        windowsHide: true,
+      });
+      store.procs.set(job.id, child);
+      if (job.status === "canceled") {
+        if (child.pid) killTree(child.pid);
+      } else {
+        job.status = "downloading";
         job.updatedAt = Date.now();
       }
-    };
 
-    let buffer = "";
-    const consume = (chunk: Buffer) => {
-      buffer += chunk.toString();
-      const lines = buffer.split(/\r?\n/);
-      buffer = lines.pop() ?? "";
-      for (const line of lines) onLine(line);
-    };
-    child.stdout.on("data", consume);
-    child.stderr.on("data", consume);
+      let log = "";
+      const onLine = (raw: string) => {
+        const line = raw.trim();
+        if (!line) return;
+        log = `${log}\n${line}`.slice(-4000);
 
-    child.on("error", (err) => {
-      job.status = "error";
-      job.error = err.message;
-      job.updatedAt = Date.now();
-      store.procs.delete(job.id);
-      void rm(dir, { recursive: true, force: true }).catch(() => {});
-      resolve();
-    });
+        if (line.startsWith(PROGRESS_PREFIX)) {
+          const parts = line.slice(PROGRESS_PREFIX.length).split("|");
+          const downloaded = toNumber(parts[0]);
+          const total = toNumber(parts[1]) ?? toNumber(parts[2]);
+          job.downloadedBytes = downloaded ?? job.downloadedBytes;
+          job.totalBytes = total ?? job.totalBytes;
+          job.speedBps = toNumber(parts[3]);
+          job.etaSec = toNumber(parts[4]);
+          if (job.totalBytes && job.downloadedBytes) {
+            job.progress = Math.min(
+              100,
+              Math.round((job.downloadedBytes / job.totalBytes) * 100),
+            );
+          }
+          if (job.status !== "downloading") job.status = "downloading";
+          job.updatedAt = Date.now();
+          return;
+        }
 
-    child.on("close", (code) => {
-      store.procs.delete(job.id);
-      if (buffer.trim()) onLine(buffer);
+        if (line.startsWith("[ExtractAudio]")) {
+          job.status = "converting";
+          job.progress = 100;
+          job.updatedAt = Date.now();
+        }
+      };
 
-      if (job.status === "canceled") {
+      let buffer = "";
+      const consume = (chunk: Buffer) => {
+        buffer += chunk.toString();
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+        for (const line of lines) onLine(line);
+      };
+      child.stdout.on("data", consume);
+      child.stderr.on("data", consume);
+
+      child.on("error", (err) => {
+        job.status = "error";
+        job.error = err.message;
+        job.updatedAt = Date.now();
+        store.procs.delete(job.id);
         void rm(dir, { recursive: true, force: true }).catch(() => {});
         resolve();
-        return;
-      }
+      });
 
-      if (code === 0) {
-        const filePath = path.join(dir, "audio.mp3");
-        stat(filePath)
-          .then(() => {
-            job.filePath = filePath;
-            job.status = "completed";
-            job.progress = 100;
-            job.speedBps = null;
-            job.etaSec = null;
-            job.updatedAt = Date.now();
-          })
-          .catch(() => {
-            job.status = "error";
-            job.error = "Conversion finished but no MP3 was produced";
-            job.updatedAt = Date.now();
-            void rm(dir, { recursive: true, force: true }).catch(() => {});
-          })
-          .finally(resolve);
-        return;
-      }
+      child.on("close", (code) => {
+        store.procs.delete(job.id);
+        if (buffer.trim()) onLine(buffer);
 
-      job.status = "error";
-      job.error = lastErrorLine(log) ?? `yt-dlp exited with code ${code}`;
-      job.updatedAt = Date.now();
-      void rm(dir, { recursive: true, force: true }).catch(() => {});
-      resolve();
+        if (job.status === "canceled") {
+          void rm(dir, { recursive: true, force: true }).catch(() => {});
+          resolve();
+          return;
+        }
+
+        if (code === 0) {
+          const filePath = path.join(dir, "audio.mp3");
+          stat(filePath)
+            .then(() => {
+              job.filePath = filePath;
+              job.status = "completed";
+              job.progress = 100;
+              job.speedBps = null;
+              job.etaSec = null;
+              job.updatedAt = Date.now();
+            })
+            .catch(() => {
+              job.status = "error";
+              job.error = "Conversion finished but no MP3 was produced";
+              job.updatedAt = Date.now();
+              void rm(dir, { recursive: true, force: true }).catch(() => {});
+            })
+            .finally(resolve);
+          return;
+        }
+
+        job.status = "error";
+        job.error = lastErrorLine(log) ?? `yt-dlp exited with code ${code}`;
+        job.updatedAt = Date.now();
+        void rm(dir, { recursive: true, force: true }).catch(() => {});
+        resolve();
+      });
     });
-  });
+  } finally {
+    pump();
+  }
 }
 
 function lastErrorLine(log: string): string | null {
@@ -280,10 +371,14 @@ function lastErrorLine(log: string): string | null {
 function prune(): void {
   const all = listJobs();
   if (all.length <= MAX_JOBS) return;
-  for (const stale of all.slice(MAX_JOBS)) {
-    if (stale.status === "downloading" || stale.status === "converting") continue;
-    store.jobs.delete(stale.id);
-    void rm(jobDir(stale.id), { recursive: true, force: true }).catch(() => {});
+  const excess = all.length - MAX_JOBS;
+  let removed = 0;
+  for (let i = all.length - 1; i >= 0 && removed < excess; i -= 1) {
+    const job = all[i];
+    if (isActive(job)) continue;
+    store.jobs.delete(job.id);
+    void rm(jobDir(job.id), { recursive: true, force: true }).catch(() => {});
+    removed += 1;
   }
 }
 

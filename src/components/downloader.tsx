@@ -17,11 +17,154 @@ const STATUS_META: Record<JobStatus, { label: string; className: string }> = {
 
 const ACTIVE: JobStatus[] = ["queued", "resolving", "downloading", "converting"];
 
+interface PlaylistResponse {
+  playlist: { id: string; title: string; itemCount: number };
+  jobs: PublicJob[];
+}
+
+type Section =
+  | { kind: "job"; job: PublicJob }
+  | { kind: "playlist"; id: string; title: string; jobs: PublicJob[] };
+
+function groupSections(jobs: PublicJob[]): Section[] {
+  const sections: Section[] = [];
+  for (const job of jobs) {
+    if (!job.playlistId) {
+      sections.push({ kind: "job", job });
+      continue;
+    }
+    let section = sections.find(
+      (s): s is Extract<Section, { kind: "playlist" }> =>
+        s.kind === "playlist" && s.id === job.playlistId,
+    );
+    if (!section) {
+      section = {
+        kind: "playlist",
+        id: job.playlistId,
+        title: job.playlistTitle ?? "Playlist",
+        jobs: [],
+      };
+      sections.push(section);
+    }
+    section.jobs.push(job);
+  }
+  for (const section of sections) {
+    if (section.kind === "playlist") {
+      section.jobs.sort(
+        (a, b) => (a.playlistIndex ?? 0) - (b.playlistIndex ?? 0),
+      );
+    }
+  }
+  return sections;
+}
+
+function JobRow({
+  job,
+  onCancel,
+}: {
+  job: PublicJob;
+  onCancel: (id: string) => void;
+}) {
+  const meta = STATUS_META[job.status];
+  const isActive = ACTIVE.includes(job.status);
+
+  return (
+    <article className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="relative hidden h-[67px] w-[120px] shrink-0 overflow-hidden rounded-lg bg-zinc-800 sm:block">
+        {job.thumbnail ? (
+          <Image
+            src={job.thumbnail}
+            alt=""
+            fill
+            unoptimized
+            sizes="120px"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-xs text-zinc-600">
+            MP3
+          </div>
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-white">
+              {job.playlistIndex !== null && (
+                <span className="mr-1 text-zinc-500">{job.playlistIndex}.</span>
+              )}
+              {job.title ?? job.url}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-zinc-500">
+              {job.uploader ?? "YouTube"} · {formatDuration(job.durationSec)}
+            </p>
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${meta.className}`}
+          >
+            {meta.label}
+          </span>
+        </div>
+
+        {isActive && (
+          <div className="mt-3">
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-red-500 transition-all duration-300"
+                style={{ width: `${job.progress}%` }}
+              />
+            </div>
+            <div className="mt-1.5 flex justify-between text-[11px] text-zinc-500">
+              <span>
+                {job.status === "queued"
+                  ? "Waiting for a free slot..."
+                  : job.status === "converting"
+                    ? "Converting to MP3..."
+                    : `${job.progress}%${
+                        job.totalBytes
+                          ? ` · ${formatBytes(job.downloadedBytes)} / ${formatBytes(job.totalBytes)}`
+                          : ""
+                      }`}
+              </span>
+              <span>{formatSpeed(job.speedBps)}</span>
+            </div>
+          </div>
+        )}
+
+        {job.status === "error" && job.error && (
+          <p className="mt-2 line-clamp-2 text-xs text-red-400">{job.error}</p>
+        )}
+
+        <div className="mt-3 flex gap-2">
+          {job.status === "completed" && (
+            <a
+              href={`/api/jobs/${job.id}/file`}
+              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
+            >
+              Download MP3
+            </a>
+          )}
+          {isActive && (
+            <button
+              onClick={() => onCancel(job.id)}
+              className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function Downloader() {
   const [url, setUrl] = useState("");
   const [jobs, setJobs] = useState<PublicJob[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -55,10 +198,18 @@ export default function Downloader() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: trimmed }),
       });
-      const data = (await res.json()) as { job?: PublicJob; error?: string };
-      if (!res.ok || !data.job) {
+      const data = (await res.json()) as {
+        job?: PublicJob;
+        playlist?: PlaylistResponse["playlist"];
+        jobs?: PublicJob[];
+        error?: string;
+      };
+      if (!res.ok) {
         setError(data.error ?? "Something went wrong");
-      } else {
+      } else if (data.playlist && data.jobs) {
+        setJobs((prev) => [...data.jobs as PublicJob[], ...prev]);
+        setUrl("");
+      } else if (data.job) {
         setJobs((prev) => [data.job as PublicJob, ...prev]);
         setUrl("");
       }
@@ -76,7 +227,28 @@ export default function Downloader() {
     await fetch(`/api/jobs/${id}`, { method: "DELETE" }).catch(() => {});
   }
 
+  async function cancelPlaylist(id: string) {
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.playlistId === id && ACTIVE.includes(j.status)
+          ? { ...j, status: "canceled" as JobStatus }
+          : j,
+      ),
+    );
+    await fetch(`/api/playlists/${id}`, { method: "DELETE" }).catch(() => {});
+  }
+
+  function toggleCollapse(id: string) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const completedCount = jobs.filter((j) => j.status === "completed").length;
+  const sections = groupSections(jobs);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
@@ -89,7 +261,7 @@ export default function Downloader() {
           YouTube <span className="text-red-500">Downloader</span>
         </h1>
         <p className="mt-3 text-base text-zinc-400">
-          Paste a YouTube link and get a clean MP3, with live progress.
+          Paste a video or playlist link and get clean MP3s, with live progress.
         </p>
       </header>
 
@@ -98,7 +270,7 @@ export default function Downloader() {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.youtube.com/watch?v=..."
+          placeholder="https://www.youtube.com/watch?v=... or /playlist?list=..."
           spellCheck={false}
           className="h-12 flex-1 rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-red-500/60 focus:bg-white/[0.07] focus:ring-2 focus:ring-red-500/20"
         />
@@ -139,95 +311,72 @@ export default function Downloader() {
           </p>
         )}
 
-        {jobs.map((job) => {
-          const meta = STATUS_META[job.status];
-          const isActive = ACTIVE.includes(job.status);
+        {sections.map((section) => {
+          if (section.kind === "job") {
+            return (
+              <JobRow key={section.job.id} job={section.job} onCancel={cancelJob} />
+            );
+          }
+
+          const total = section.jobs.length;
+          const done = section.jobs.filter((j) => j.status === "completed").length;
+          const failed = section.jobs.filter((j) => j.status === "error").length;
+          const activeCount = section.jobs.filter((j) =>
+            ACTIVE.includes(j.status),
+          ).length;
+          const pct = total ? Math.round((done / total) * 100) : 0;
+          const isCollapsed = collapsed.has(section.id);
+
           return (
-            <article
-              key={job.id}
-              className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4"
+            <div
+              key={section.id}
+              className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]"
             >
-              <div className="relative hidden h-[67px] w-[120px] shrink-0 overflow-hidden rounded-lg bg-zinc-800 sm:block">
-                {job.thumbnail ? (
-                  <Image
-                    src={job.thumbnail}
-                    alt=""
-                    fill
-                    unoptimized
-                    sizes="120px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-zinc-600">
-                    MP3
-                  </div>
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
+              <div className="p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-white">
-                      {job.title ?? job.url}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs text-zinc-500">
-                      {job.uploader ?? "YouTube"} · {formatDuration(job.durationSec)}
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${meta.className}`}
+                  <button
+                    onClick={() => toggleCollapse(section.id)}
+                    className="flex min-w-0 items-center gap-2 text-left"
                   >
-                    {meta.label}
-                  </span>
-                </div>
-
-                {isActive && (
-                  <div className="mt-3">
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-red-500 transition-all duration-300"
-                        style={{ width: `${job.progress}%` }}
-                      />
-                    </div>
-                    <div className="mt-1.5 flex justify-between text-[11px] text-zinc-500">
-                      <span>
-                        {job.status === "converting"
-                          ? "Converting to MP3..."
-                          : `${job.progress}%${
-                              job.totalBytes
-                                ? ` · ${formatBytes(job.downloadedBytes)} / ${formatBytes(job.totalBytes)}`
-                                : ""
-                            }`}
+                    <span className="text-zinc-500">
+                      {isCollapsed ? "\u25b6" : "\u25bc"}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-white">
+                        {section.title}
                       </span>
-                      <span>{formatSpeed(job.speedBps)}</span>
-                    </div>
-                  </div>
-                )}
-
-                {job.status === "error" && job.error && (
-                  <p className="mt-2 line-clamp-2 text-xs text-red-400">{job.error}</p>
-                )}
-
-                <div className="mt-3 flex gap-2">
-                  {job.status === "completed" && (
-                    <a
-                      href={`/api/jobs/${job.id}/file`}
-                      className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
-                    >
-                      Download MP3
-                    </a>
-                  )}
-                  {isActive && (
+                      <span className="mt-0.5 block text-xs text-zinc-500">
+                        Playlist · {done}/{total} done
+                        {failed > 0 ? ` · ${failed} failed` : ""}
+                        {activeCount > 0 ? ` · ${activeCount} active` : ""}
+                      </span>
+                    </span>
+                  </button>
+                  {activeCount > 0 && (
                     <button
-                      onClick={() => cancelJob(job.id)}
-                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5"
+                      onClick={() => cancelPlaylist(section.id)}
+                      className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5"
                     >
-                      Cancel
+                      Cancel all
                     </button>
                   )}
                 </div>
+                <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-all duration-300"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
               </div>
-            </article>
+
+              {!isCollapsed && (
+                <div className="space-y-3 border-t border-white/10 p-3">
+                  {section.jobs.map((job) => (
+                    <JobRow key={job.id} job={job} onCancel={cancelJob} />
+                  ))}
+                </div>
+              )}
+            </div>
           );
         })}
       </section>

@@ -1,5 +1,9 @@
-import { newJob, listJobs } from "@/lib/jobs";
-import { normalizeYouTubeUrl } from "@/lib/ytdlp";
+import { newJob, newPlaylistJobs, listJobs } from "@/lib/jobs";
+import {
+  fetchPlaylist,
+  isPlaylistUrl,
+  normalizeYouTubeUrl,
+} from "@/lib/ytdlp";
 import { toPublicJob } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -28,6 +32,25 @@ export async function POST(request: Request) {
       { error: "Please provide a valid YouTube video URL" },
       { status: 400 },
     );
+  }
+
+  if (isPlaylistUrl(normalized)) {
+    try {
+      const meta = await fetchPlaylist(normalized);
+      const { playlist, jobs } = newPlaylistJobs(meta);
+      return Response.json(
+        { playlist, jobs: jobs.map(toPublicJob) },
+        { status: 201 },
+      );
+    } catch (err) {
+      return Response.json(
+        {
+          error:
+            err instanceof Error ? err.message : "Failed to read playlist",
+        },
+        { status: 502 },
+      );
+    }
   }
 
   const job = newJob(normalized);

@@ -51,6 +51,104 @@ export function normalizeYouTubeUrl(raw: string): string | null {
   return parsed.toString();
 }
 
+export function isPlaylistUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname === "/playlist") return true;
+    return parsed.searchParams.has("list");
+  } catch {
+    return false;
+  }
+}
+
+export function watchUrl(videoId: string): string {
+  return `https://www.youtube.com/watch?v=${videoId}`;
+}
+
+export interface PlaylistEntry {
+  id: string;
+  title: string;
+  durationSec: number | null;
+  thumbnail: string | null;
+  url: string;
+}
+
+export interface PlaylistMeta {
+  id: string;
+  title: string;
+  entries: PlaylistEntry[];
+}
+
+export function fetchPlaylist(url: string): Promise<PlaylistMeta> {
+  return new Promise((resolve, reject) => {
+    const args = [
+      "--ignore-config",
+      "--no-warnings",
+      "--no-color",
+      "--flat-playlist",
+      "--dump-single-json",
+      "--",
+      url,
+    ];
+    const child = spawn(/* turbopackIgnore: true */ YTDLP_PATH, args, {
+      windowsHide: true,
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (d) => (stdout += d.toString()));
+    child.stderr.on("data", (d) => (stderr += d.toString()));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr.trim() || `yt-dlp exited with code ${code}`));
+        return;
+      }
+      try {
+        const raw = JSON.parse(stdout) as {
+          id?: string;
+          title?: string;
+          entries?: unknown[];
+        };
+        const rawEntries = Array.isArray(raw.entries) ? raw.entries : [];
+        const entries: PlaylistEntry[] = [];
+        for (const entry of rawEntries) {
+          if (typeof entry !== "object" || entry === null) continue;
+          const record = entry as Record<string, unknown>;
+          const id = typeof record.id === "string" ? record.id : null;
+          if (!id) continue;
+          entries.push({
+            id,
+            title:
+              typeof record.title === "string" && record.title
+                ? record.title
+                : `Video ${id}`,
+            durationSec:
+              typeof record.duration === "number" &&
+              Number.isFinite(record.duration)
+                ? Math.round(record.duration)
+                : null,
+            thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+            url: watchUrl(id),
+          });
+        }
+        if (entries.length === 0) {
+          reject(new Error("Playlist is empty or unavailable"));
+          return;
+        }
+        const fallbackId =
+          new URL(url).searchParams.get("list") ?? raw.id ?? "playlist";
+        resolve({
+          id: raw.id ?? fallbackId,
+          title: raw.title ?? "Playlist",
+          entries,
+        });
+      } catch {
+        reject(new Error("Could not read playlist metadata"));
+      }
+    });
+  });
+}
+
 export interface VideoMeta {
   title: string | null;
   uploader: string | null;

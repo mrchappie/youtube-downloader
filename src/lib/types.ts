@@ -22,6 +22,9 @@ export interface Job {
   etaSec: number | null;
   filePath: string | null;
   error: string | null;
+  playlistId: string | null;
+  playlistTitle: string | null;
+  playlistIndex: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -41,6 +44,9 @@ export interface PublicJob {
   etaSec: number | null;
   hasFile: boolean;
   error: string | null;
+  playlistId: string | null;
+  playlistTitle: string | null;
+  playlistIndex: number | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -61,6 +67,9 @@ export function toPublicJob(job: Job): PublicJob {
     etaSec: job.etaSec,
     hasFile: job.status === "completed" && job.filePath !== null,
     error: job.error,
+    playlistId: job.playlistId,
+    playlistTitle: job.playlistTitle,
+    playlistIndex: job.playlistIndex,
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
   };
