@@ -17,7 +17,8 @@ progress bars, then download the finished MP3s.
 - Retry failed downloads individually, or all at once per page
 - Cancel a single download or an entire playlist
 - Per-playlist or singles-only ZIP download
-- Storage sidebar to clear failed/finished/old files
+- English and Romanian UI, switchable from the sidebar (saved in the browser)
+- Storage sidebar to clear failed/canceled/finished/old files
 - Input validation (YouTube URLs only)
 
 ## Stack

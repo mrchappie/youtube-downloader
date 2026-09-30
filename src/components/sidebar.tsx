@@ -5,29 +5,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { CleanupScope, StorageStats } from "@/lib/jobs";
 import { formatAge, formatBytes } from "@/lib/format";
+import { LOCALES, useI18n } from "@/lib/i18n";
 
 interface Action {
   scope: CleanupScope;
-  label: string;
+  labelKey: string;
   count: (s: StorageStats) => number;
   danger?: boolean;
 }
 
 const ACTIONS: Action[] = [
-  { scope: "failed", label: "Clear failed", count: (s) => s.failed },
-  { scope: "canceled", label: "Clear canceled", count: (s) => s.canceled },
-  { scope: "completed", label: "Clear finished", count: (s) => s.completed },
-  { scope: "old", label: "Clear old", count: (s) => s.old },
-  { scope: "all", label: "Clear everything", count: (s) => s.totalJobs, danger: true },
+  { scope: "failed", labelKey: "action.failed", count: (s) => s.failed },
+  { scope: "canceled", labelKey: "action.canceled", count: (s) => s.canceled },
+  { scope: "completed", labelKey: "action.completed", count: (s) => s.completed },
+  { scope: "old", labelKey: "action.old", count: (s) => s.old },
+  { scope: "all", labelKey: "action.all", count: (s) => s.totalJobs, danger: true },
 ];
 
 const NAV = [
-  { href: "/", label: "Single video" },
-  { href: "/playlist", label: "Playlist" },
+  { href: "/", labelKey: "nav.single" },
+  { href: "/playlist", labelKey: "nav.playlist" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { t, locale, setLocale } = useI18n();
   const [stats, setStats] = useState<StorageStats | null>(null);
   const [busy, setBusy] = useState<CleanupScope | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -66,14 +68,15 @@ export default function Sidebar() {
       const data = (await res.json()) as { removed: number; freedBytes: number };
       setMessage(
         data.removed === 0
-          ? "Nothing to clear."
-          : `Freed ${formatBytes(data.freedBytes)} across ${data.removed} item${
-              data.removed === 1 ? "" : "s"
-            }.`,
+          ? t("cleanup.nothing")
+          : t(data.removed === 1 ? "cleanup.freed.one" : "cleanup.freed.other", {
+              size: formatBytes(data.freedBytes),
+              count: data.removed,
+            }),
       );
       await loadStats();
     } catch {
-      setMessage("Cleanup failed.");
+      setMessage(t("cleanup.failed"));
     } finally {
       setBusy(null);
     }
@@ -83,14 +86,12 @@ export default function Sidebar() {
 
   return (
     <aside className="flex w-full shrink-0 flex-col gap-6 border-b border-white/10 bg-white/[0.02] p-5 md:sticky md:top-0 md:h-screen md:w-72 md:border-b-0 md:border-r">
-      <div>
-        <Link href="/" className="flex items-center gap-2">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
-          <span className="text-sm font-semibold tracking-tight text-white">
-            YouTube Downloader
-          </span>
-        </Link>
-      </div>
+      <Link href="/" className="flex items-center gap-2">
+        <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+        <span className="text-sm font-semibold tracking-tight text-white">
+          YouTube Downloader
+        </span>
+      </Link>
 
       <nav className="flex flex-col gap-1">
         {NAV.map((item) => {
@@ -105,15 +106,36 @@ export default function Sidebar() {
                   : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
               }`}
             >
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}
       </nav>
 
+      <div className="flex items-center justify-between">
+        <span className="text-xs uppercase tracking-wide text-zinc-500">
+          {t("lang.label")}
+        </span>
+        <div className="flex gap-0.5 rounded-lg border border-white/10 p-0.5">
+          {LOCALES.map((item) => (
+            <button
+              key={item.value}
+              onClick={() => setLocale(item.value)}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                locale === item.value
+                  ? "bg-white text-zinc-900"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div>
         <p className="mb-3 text-xs uppercase tracking-wide text-zinc-500">
-          Storage
+          {t("sidebar.storage")}
         </p>
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <p className="text-2xl font-semibold text-white">
@@ -121,8 +143,10 @@ export default function Sidebar() {
           </p>
           <p className="mt-1 text-xs text-zinc-500">
             {stats
-              ? `${stats.totalJobs} job${stats.totalJobs === 1 ? "" : "s"} · ${stats.active} active`
-              : "on disk"}
+              ? `${stats.totalJobs} ${t(
+                  stats.totalJobs === 1 ? "sidebar.job.one" : "sidebar.job.other",
+                )} · ${stats.active} ${t("sidebar.active")}`
+              : t("sidebar.onDisk")}
           </p>
         </div>
       </div>
@@ -143,7 +167,7 @@ export default function Sidebar() {
               }`}
             >
               <span className="font-medium">
-                {action.label}
+                {t(action.labelKey)}
                 {action.scope === "old" && (
                   <span className="ml-1 text-xs font-normal text-zinc-500">
                     &gt; {oldAge}
@@ -169,8 +193,7 @@ export default function Sidebar() {
       )}
 
       <p className="mt-auto text-[11px] leading-relaxed text-zinc-600">
-        Failed and canceled downloads are removed automatically. Finished MP3s stay
-        until you clear them.
+        {t("sidebar.footer")}
       </p>
     </aside>
   );

@@ -9,6 +9,7 @@ import {
   looksLikePlaylist,
 } from "@/lib/playlist";
 import { isActiveStatus } from "@/lib/job-status";
+import { useI18n } from "@/lib/i18n";
 import JobRow from "./job-row";
 import type { JobStatus, PublicJob } from "@/lib/types";
 
@@ -26,6 +27,7 @@ interface PlaylistGroup {
 }
 
 export default function PlaylistDownloader() {
+  const { t } = useI18n();
   const { jobs, setJobs } = useJobs();
   const [url, setUrl] = useState("");
   const [start, setStart] = useState("1");
@@ -47,11 +49,11 @@ export default function PlaylistDownloader() {
   async function submitRange(rawStart: number, rawEnd: number) {
     const trimmed = url.trim();
     if (!trimmed) {
-      setError("Paste a playlist URL first.");
+      setError(t("error.pastePlaylist"));
       return;
     }
     if (!looksLikePlaylist(trimmed)) {
-      setError("That is not a playlist URL — use the Single video page.");
+      setError(t("error.playlistOnly"));
       return;
     }
     if (
@@ -60,11 +62,11 @@ export default function PlaylistDownloader() {
       rawStart < 1 ||
       rawEnd < rawStart
     ) {
-      setError("Enter a valid range (From must be at least 1 and ≤ To).");
+      setError(t("error.invalidRange"));
       return;
     }
     if (rawEnd - rawStart + 1 > PLAYLIST_MAX_SIZE) {
-      setError(`Max ${PLAYLIST_MAX_SIZE} items per batch.`);
+      setError(t("error.rangeTooBig", { max: PLAYLIST_MAX_SIZE }));
       return;
     }
 
@@ -87,7 +89,7 @@ export default function PlaylistDownloader() {
         error?: string;
       };
       if (!res.ok || !data.playlist || !data.jobs) {
-        setError(data.error ?? "Failed to read playlist");
+        setError(data.error ?? t("error.playlistFailed"));
       } else {
         setJobs((prev) => [...(data.jobs as PublicJob[]), ...prev]);
         const loaded: PlaylistBatch = {
@@ -102,7 +104,7 @@ export default function PlaylistDownloader() {
         setEnd(String(Math.min(nextStart + batchSize - 1, Math.max(loaded.total, nextStart))));
       }
     } catch {
-      setError("Could not reach the server");
+      setError(t("error.noServer"));
     } finally {
       setSubmitting(false);
     }
@@ -203,14 +205,13 @@ export default function PlaylistDownloader() {
       <header className="mb-10">
         <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-400">
           <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-          Playlist
+          {t("playlist.badge")}
         </div>
         <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-5xl">
-          Playlist to <span className="text-red-500">MP3</span>
+          {t("playlist.titleBefore")} <span className="text-red-500">MP3</span>
         </h1>
         <p className="mt-3 text-base text-zinc-400">
-          Download a playlist in batches of {PLAYLIST_DEFAULT_SIZE}. Each video gets its
-          own job.
+          {t("playlist.subtitle", { size: PLAYLIST_DEFAULT_SIZE })}
         </p>
       </header>
 
@@ -219,13 +220,13 @@ export default function PlaylistDownloader() {
           type="text"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.youtube.com/playlist?list=..."
+          placeholder={t("form.urlPlaylist")}
           spellCheck={false}
           className="h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-zinc-500 outline-none transition focus:border-red-500/60 focus:bg-white/[0.07] focus:ring-2 focus:ring-red-500/20"
         />
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            From
+            {t("range.from")}
             <input
               type="number"
               min={1}
@@ -235,7 +236,7 @@ export default function PlaylistDownloader() {
             />
           </label>
           <label className="flex flex-col gap-1 text-xs text-zinc-500">
-            To
+            {t("range.to")}
             <input
               type="number"
               min={1}
@@ -245,27 +246,30 @@ export default function PlaylistDownloader() {
             />
           </label>
           <span className="pb-3 text-xs text-zinc-500">
-            {size > 0 ? `${size} item${size === 1 ? "" : "s"}` : "—"}
+            {size > 0
+              ? t(size === 1 ? "range.items.one" : "range.items.other", {
+                  count: size,
+                })
+              : "—"}
           </span>
           <button
             type="submit"
             disabled={submitting || url.trim().length === 0 || tooBig || size <= 0}
             className="ml-auto h-11 rounded-xl bg-red-600 px-6 text-sm font-semibold text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {submitting ? "Loading..." : "Download batch"}
+            {submitting ? t("action.loading") : t("action.downloadBatch")}
           </button>
         </div>
       </form>
 
       {tooBig && (
         <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          Max {PLAYLIST_MAX_SIZE} items per batch. Reduce the range.
+          {t("warning.tooBig", { max: PLAYLIST_MAX_SIZE })}
         </p>
       )}
       {warn && (
         <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
-          Heads up: downloading {size} videos at once can be heavy and may crash the
-          app. Keep batches under {PLAYLIST_WARN_SIZE}.
+          {t("warning.heavy", { count: size, warn: PLAYLIST_WARN_SIZE })}
         </p>
       )}
       {error && (
@@ -277,7 +281,11 @@ export default function PlaylistDownloader() {
       {batch && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
           <p className="text-xs text-zinc-400">
-            Loaded items {batch.start}–{batch.end} of {batch.total}.
+            {t("batch.loaded", {
+              start: batch.start,
+              end: batch.end,
+              total: batch.total,
+            })}
           </p>
           {hasMore ? (
             <button
@@ -285,18 +293,18 @@ export default function PlaylistDownloader() {
               disabled={submitting}
               className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-200 disabled:opacity-40"
             >
-              Download next ({nextStart}–{nextEnd})
+              {t("action.downloadNext")} ({nextStart}–{nextEnd})
             </button>
           ) : (
-            <span className="text-xs text-emerald-400">
-              Reached the end of the playlist.
-            </span>
+            <span className="text-xs text-emerald-400">{t("batch.end")}</span>
           )}
         </div>
       )}
 
       <div className="mt-8 mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-zinc-400">Playlists</h2>
+        <h2 className="text-sm font-medium text-zinc-400">
+          {t("playlists.heading")}
+        </h2>
         <button
           onClick={retryAllFailed}
           disabled={failedTotal === 0}
@@ -306,14 +314,15 @@ export default function PlaylistDownloader() {
               : "border border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10"
           }`}
         >
-          Retry all failed{failedTotal > 0 ? ` (${failedTotal})` : ""}
+          {t("action.retryAllFailed")}
+          {failedTotal > 0 ? ` (${failedTotal})` : ""}
         </button>
       </div>
 
       <section className="space-y-3">
         {groups.length === 0 && (
           <p className="rounded-xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-zinc-500">
-            No playlists yet. Paste a playlist link above to get started.
+            {t("playlist.empty")}
           </p>
         )}
 
@@ -347,11 +356,22 @@ export default function PlaylistDownloader() {
                         {group.title}
                       </span>
                       <span className="mt-0.5 block text-xs text-zinc-500">
-                        {playlistTotal} item{playlistTotal === 1 ? "" : "s"}
-                        {playlistTotal > total ? ` (${total} loaded)` : ""} ·{" "}
-                        {done}/{total} done
-                        {failed > 0 ? ` · ${failed} failed` : ""}
-                        {activeCount > 0 ? ` · ${activeCount} active` : ""}
+                        {t(
+                          playlistTotal === 1
+                            ? "range.items.one"
+                            : "range.items.other",
+                          { count: playlistTotal },
+                        )}
+                        {playlistTotal > total
+                          ? ` ${t("group.loaded", { count: total })}`
+                          : ""}{" "}
+                        · {t("group.done", { done, total })}
+                        {failed > 0
+                          ? ` · ${t("group.failed", { count: failed })}`
+                          : ""}
+                        {activeCount > 0
+                          ? ` · ${t("group.active", { count: activeCount })}`
+                          : ""}
                       </span>
                     </span>
                   </button>
@@ -361,7 +381,7 @@ export default function PlaylistDownloader() {
                         href={`/api/download-all?playlist=${encodeURIComponent(group.id)}`}
                         className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20"
                       >
-                        ZIP ({done})
+                        {t("action.zip")} ({done})
                       </a>
                     )}
                     {activeCount > 0 && (
@@ -369,7 +389,7 @@ export default function PlaylistDownloader() {
                         onClick={() => cancelPlaylist(group.id)}
                         className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5"
                       >
-                        Cancel all
+                        {t("action.cancelAll")}
                       </button>
                     )}
                   </div>

@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import type { PublicJob } from "@/lib/types";
-import { STATUS_META, isActiveStatus } from "@/lib/job-status";
+import { STATUS_CLASS, isActiveStatus } from "@/lib/job-status";
 import { formatBytes, formatDuration, formatSpeed } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 
 export default function JobRow({
   job,
@@ -14,7 +15,7 @@ export default function JobRow({
   onCancel: (id: string) => void;
   onRetry: (id: string) => void;
 }) {
-  const meta = STATUS_META[job.status];
+  const { t } = useI18n();
   const active = isActiveStatus(job.status);
   const canRetry = job.status === "error" || job.status === "canceled";
 
@@ -51,9 +52,9 @@ export default function JobRow({
             </p>
           </div>
           <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${meta.className}`}
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${STATUS_CLASS[job.status]}`}
           >
-            {meta.label}
+            {t(`status.${job.status}`)}
           </span>
         </div>
 
@@ -68,9 +69,9 @@ export default function JobRow({
             <div className="mt-1.5 flex justify-between text-[11px] text-zinc-500">
               <span>
                 {job.status === "queued"
-                  ? "Waiting for a free slot..."
+                  ? t("job.queued")
                   : job.status === "converting"
-                    ? "Converting to MP3..."
+                    ? t("job.converting")
                     : `${job.progress}%${
                         job.totalBytes
                           ? ` · ${formatBytes(job.downloadedBytes)} / ${formatBytes(job.totalBytes)}`
@@ -92,7 +93,7 @@ export default function JobRow({
               href={`/api/jobs/${job.id}/file`}
               className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-500"
             >
-              Download MP3
+              {t("action.downloadMp3")}
             </a>
           )}
           {canRetry && (
@@ -100,7 +101,7 @@ export default function JobRow({
               onClick={() => onRetry(job.id)}
               className="rounded-lg bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
             >
-              Retry
+              {t("action.retry")}
             </button>
           )}
           {active && (
@@ -108,7 +109,7 @@ export default function JobRow({
               onClick={() => onCancel(job.id)}
               className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:bg-white/5"
             >
-              Cancel
+              {t("action.cancel")}
             </button>
           )}
         </div>
